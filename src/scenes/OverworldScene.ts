@@ -1,7 +1,10 @@
 import Phaser from "phaser";
 import { DIALOGUES } from "../data/dialogues";
+import { ITEMS } from "../data/items";
 import { DialogueRunner } from "../dialogue/runner";
+import { gameState, hasFlag, pickUp } from "../state/gameState";
 import { DialogueBox } from "../ui/DialogueBox";
+import { InventoryScreen } from "../ui/InventoryScreen";
 import { parseTiledMap, TILE_SIZE } from "../world/areaMap";
 import { findInteractable, tryStep, type Entity } from "../world/movement";
 import { nextPaceStep, type PacingNpc } from "../world/npcPacing";
@@ -51,7 +54,10 @@ export class OverworldScene extends Phaser.Scene {
     left: Phaser.Input.Keyboard.Key[];
     right: Phaser.Input.Keyboard.Key[];
     interact: Phaser.Input.Keyboard.Key[];
+    inventory: Phaser.Input.Keyboard.Key[];
+    back: Phaser.Input.Keyboard.Key[];
   };
+  private inventory!: InventoryScreen;
 
   constructor() {
     super(SCENES.overworld);
@@ -91,7 +97,11 @@ export class OverworldScene extends Phaser.Scene {
     this.setupInput();
 
     this.dialogueBox = new DialogueBox((i) => this.chooseByClick(i));
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.dialogueBox.close());
+    this.inventory = new InventoryScreen();
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.dialogueBox.close();
+      this.inventory.close();
+    });
 
     this.time.addEvent({ delay: PACE_MS, loop: true, callback: () => this.paceNpcs() });
     this.cameras.main.fadeIn(FADE_MS);
@@ -99,7 +109,13 @@ export class OverworldScene extends Phaser.Scene {
 
   update(): void {
     if (this.mode === "dialogue") return this.updateDialogue();
+    if (this.mode === "inventory") return this.updateInventory();
     if (this.mode !== "explore") return;
+    if (this.justPressed("inventory")) {
+      this.mode = "inventory";
+      this.inventory.open(gameState.inventory);
+      return;
+    }
     if (this.justPressed("interact")) {
       this.interact();
       return;
@@ -113,9 +129,12 @@ export class OverworldScene extends Phaser.Scene {
   protected onInteract(entity: Entity): void {
     const live = entity as LiveEntity;
     if (live.kind === "npc" && live.dialogueId) this.startDialogue(new DialogueRunner(DIALOGUES[live.dialogueId]));
+    if (live.kind === "item" && live.itemId) this.pickUpItem(live);
   }
 
-  protected isEntityActive(_entity: Entity): boolean {
+  protected isEntityActive(entity: Entity): boolean {
+    if (entity.kind === "item") return !hasFlag(gameState, `picked:${entity.id}`);
+    if (entity.kind === "enemy") return !hasFlag(gameState, `defeated:${entity.id}`);
     return true;
   }
 
@@ -163,6 +182,8 @@ export class OverworldScene extends Phaser.Scene {
       left: keys(K.LEFT, K.A),
       right: keys(K.RIGHT, K.D),
       interact: keys(K.SPACE, K.E, K.ENTER),
+      inventory: keys(K.I),
+      back: keys(K.ESC),
     };
   }
 
@@ -251,6 +272,24 @@ export class OverworldScene extends Phaser.Scene {
   private interact(): void {
     const target = findInteractable(this.playerPos, this.facing, this.entities);
     if (target) this.onInteract(target);
+  }
+
+  private pickUpItem(item: LiveEntity): void {
+    if (!item.itemId || !pickUp(gameState, item.id, item.itemId)) return;
+    item.sprite.destroy();
+    this.entities = this.entities.filter((e) => e !== item);
+    const name = ITEMS[item.itemId]?.name ?? item.itemId;
+    this.startDialogue(new DialogueRunner({ id: "pickup", start: "a", nodes: { a: { text: `You picked up the ${name}!` } } }));
+  }
+
+  private updateInventory(): void {
+    if (this.justPressed("up")) this.inventory.move(-1);
+    if (this.justPressed("down")) this.inventory.move(1);
+    if (this.justPressed("inventory") || this.justPressed("back")) {
+      this.inventory.close();
+      this.holdLock = true;
+      this.mode = "explore";
+    }
   }
 
   // --- dialogue --------------------------------------------------------------
