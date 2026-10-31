@@ -1,4 +1,7 @@
 import Phaser from "phaser";
+import { DIALOGUES } from "../data/dialogues";
+import { DialogueRunner } from "../dialogue/runner";
+import { DialogueBox } from "../ui/DialogueBox";
 import { parseTiledMap, TILE_SIZE } from "../world/areaMap";
 import { findInteractable, tryStep, type Entity } from "../world/movement";
 import { nextPaceStep, type PacingNpc } from "../world/npcPacing";
@@ -25,6 +28,7 @@ interface LiveEntity extends Entity {
 const STEP_MS = 150;
 const PACE_MS = 1500;
 const FADE_MS = 150;
+const TYPE_MS = 30;
 
 export class OverworldScene extends Phaser.Scene {
   private area!: AreaMap;
@@ -36,6 +40,11 @@ export class OverworldScene extends Phaser.Scene {
   private playerFrom: TilePos | null = null;
   private facing: Facing = "down";
   private entities: LiveEntity[] = [];
+  /** After a panel closes, ignore direction keys until they're all released. */
+  private holdLock = false;
+  private dialogueBox!: DialogueBox;
+  private runner: DialogueRunner | null = null;
+  private typeTimer: Phaser.Time.TimerEvent | null = null;
   private keys!: {
     up: Phaser.Input.Keyboard.Key[];
     down: Phaser.Input.Keyboard.Key[];
@@ -58,6 +67,8 @@ export class OverworldScene extends Phaser.Scene {
     this.mode = "explore";
     this.entities = [];
     this.playerFrom = null;
+    this.holdLock = false;
+    this.runner = null;
   }
 
   create(): void {
@@ -79,13 +90,17 @@ export class OverworldScene extends Phaser.Scene {
     this.setupCamera();
     this.setupInput();
 
+    this.dialogueBox = new DialogueBox((i) => this.chooseByClick(i));
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.dialogueBox.close());
+
     this.time.addEvent({ delay: PACE_MS, loop: true, callback: () => this.paceNpcs() });
     this.cameras.main.fadeIn(FADE_MS);
   }
 
   update(): void {
+    if (this.mode === "dialogue") return this.updateDialogue();
     if (this.mode !== "explore") return;
-    if (this.keys.interact.some((k) => Phaser.Input.Keyboard.JustDown(k))) {
+    if (this.justPressed("interact")) {
       this.interact();
       return;
     }
@@ -96,7 +111,8 @@ export class OverworldScene extends Phaser.Scene {
   // --- hooks for dialogue, items and battles ---------------------------------
 
   protected onInteract(entity: Entity): void {
-    console.debug("interact", entity);
+    const live = entity as LiveEntity;
+    if (live.kind === "npc" && live.dialogueId) this.startDialogue(new DialogueRunner(DIALOGUES[live.dialogueId]));
   }
 
   protected isEntityActive(_entity: Entity): boolean {
@@ -153,10 +169,17 @@ export class OverworldScene extends Phaser.Scene {
   // --- movement --------------------------------------------------------------
 
   private heldDirection(): Facing | null {
-    for (const dir of ["up", "down", "left", "right"] as const) {
-      if (this.keys[dir].some((k) => k.isDown)) return dir;
+    const held = (["up", "down", "left", "right"] as const).find((dir) => this.keys[dir].some((k) => k.isDown)) ?? null;
+    if (this.holdLock) {
+      if (held) return null;
+      this.holdLock = false;
     }
-    return null;
+    return held;
+  }
+
+  private justPressed(name: keyof OverworldScene["keys"]): boolean {
+    // Check every key so each one's JustDown flag is consumed.
+    return this.keys[name].map((k) => Phaser.Input.Keyboard.JustDown(k)).some(Boolean);
   }
 
   private walk(dir: Facing): void {
@@ -228,6 +251,54 @@ export class OverworldScene extends Phaser.Scene {
   private interact(): void {
     const target = findInteractable(this.playerPos, this.facing, this.entities);
     if (target) this.onInteract(target);
+  }
+
+  // --- dialogue --------------------------------------------------------------
+
+  protected startDialogue(runner: DialogueRunner): void {
+    this.mode = "dialogue";
+    this.runner = runner;
+    this.dialogueBox.open(runner);
+    this.typeTimer = this.time.addEvent({
+      delay: TYPE_MS,
+      loop: true,
+      callback: () => {
+        runner.tick();
+        this.dialogueBox.render();
+      },
+    });
+  }
+
+  private updateDialogue(): void {
+    const r = this.runner;
+    if (!r) return;
+    if (this.justPressed("up")) r.move(-1);
+    if (this.justPressed("down")) r.move(1);
+    if (this.justPressed("interact")) r.press();
+    this.afterDialogueInput();
+  }
+
+  private chooseByClick(index: number): void {
+    const r = this.runner;
+    if (!r) return;
+    while (r.selected !== index) r.move(1);
+    r.press();
+    this.afterDialogueInput();
+  }
+
+  private afterDialogueInput(): void {
+    const r = this.runner;
+    if (!r) return;
+    if (!r.done) {
+      this.dialogueBox.render();
+      return;
+    }
+    this.typeTimer?.remove();
+    this.typeTimer = null;
+    this.runner = null;
+    this.dialogueBox.close();
+    this.holdLock = true;
+    this.mode = "explore";
   }
 
   private tileToWorld(p: TilePos): [number, number] {
