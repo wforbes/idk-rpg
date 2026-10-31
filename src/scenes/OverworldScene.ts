@@ -7,7 +7,7 @@ import { DialogueBox } from "../ui/DialogueBox";
 import { InventoryScreen } from "../ui/InventoryScreen";
 import { parseTiledMap, TILE_SIZE } from "../world/areaMap";
 import { findInteractable, tryStep, type Entity } from "../world/movement";
-import { nextPaceStep, type PacingNpc } from "../world/npcPacing";
+import { nextPaceStep, paceTileFree, type PacingNpc } from "../world/npcPacing";
 import type { AreaMap, Facing, TilePos } from "../world/types";
 import { SCENES } from "./keys";
 
@@ -253,13 +253,8 @@ export class OverworldScene extends Phaser.Scene {
     if (this.mode === "dialogue" || this.mode === "transition") return;
     for (const e of this.entities) {
       if (!e.pacing) continue;
-      const isFree = (p: TilePos) =>
-        !this.area.blocked[p.y * this.area.width + p.x] &&
-        !(p.x === this.playerPos.x && p.y === this.playerPos.y) &&
-        !(this.playerFrom && p.x === this.playerFrom.x && p.y === this.playerFrom.y) &&
-        !this.area.warps.some((w) => w.x === p.x && w.y === p.y) &&
-        !this.entities.some((o) => o !== e && o.x === p.x && o.y === p.y);
-      const next = nextPaceStep(e.pacing, isFree);
+      const blockers = [this.playerPos, this.playerFrom, ...this.entities.filter((o) => o !== e)];
+      const next = nextPaceStep(e.pacing, (p) => paceTileFree(this.area, p, blockers));
       e.pacing = next;
       if (next.x === e.x && next.y === e.y) continue;
       e.x = next.x;

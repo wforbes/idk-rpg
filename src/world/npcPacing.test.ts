@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { nextPaceStep, type PacingNpc } from "./npcPacing";
+import { parseTiledMap } from "./areaMap";
+import { nextPaceStep, paceTileFree, type PacingNpc } from "./npcPacing";
 
 const free = () => true;
 const pacer = (over: Partial<PacingNpc> = {}): PacingNpc => ({
@@ -38,5 +39,44 @@ describe("nextPaceStep", () => {
   test("pace none never moves", () => {
     const n = nextPaceStep(pacer({ pace: "none" }), free);
     expect(n).toMatchObject({ x: 5, y: 5 });
+  });
+});
+
+describe("paceTileFree", () => {
+  // 3×2 map with no border walls: tree at (1,0), warp at (2,1).
+  const map = parseTiledMap("p", {
+    width: 3,
+    height: 2,
+    layers: [
+      { type: "tilelayer", name: "walls", data: [0, 3, 0, 0, 0, 0] },
+      {
+        type: "objectgroup",
+        name: "objects",
+        objects: [
+          {
+            id: 1, type: "warp", x: 32, y: 16,
+            properties: [
+              { name: "target", value: "x" }, { name: "targetX", value: 0 },
+              { name: "targetY", value: 0 }, { name: "facing", value: "up" },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+
+  test("open ground is free", () => {
+    expect(paceTileFree(map, { x: 0, y: 1 }, [])).toBe(true);
+  });
+
+  test("off the map edge is never free", () => {
+    expect(paceTileFree(map, { x: -1, y: 0 }, [])).toBe(false);
+    expect(paceTileFree(map, { x: 3, y: 0 }, [])).toBe(false);
+  });
+
+  test("walls, warps and blockers are not free", () => {
+    expect(paceTileFree(map, { x: 1, y: 0 }, [])).toBe(false);
+    expect(paceTileFree(map, { x: 2, y: 1 }, [])).toBe(false);
+    expect(paceTileFree(map, { x: 0, y: 1 }, [{ x: 0, y: 1 }])).toBe(false);
   });
 });

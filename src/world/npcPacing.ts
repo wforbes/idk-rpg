@@ -1,4 +1,5 @@
-import type { TilePos } from "./types";
+import { isBlocked } from "./areaMap";
+import type { AreaMap, TilePos } from "./types";
 
 export interface PacingNpc {
   originX: number;
@@ -8,6 +9,13 @@ export interface PacingNpc {
   pace: "none" | "x" | "y";
   paceRange: number;
   dirSign: 1 | -1;
+}
+
+/** Where a pacing NPC may step: on the map, not a wall, not a warp, not a blocker (player, other entities). */
+export function paceTileFree(map: AreaMap, p: TilePos, blockers: (TilePos | null)[]): boolean {
+  if (isBlocked(map, p.x, p.y)) return false;
+  if (map.warps.some((w) => w.x === p.x && w.y === p.y)) return false;
+  return !blockers.some((b) => b && b.x === p.x && b.y === p.y);
 }
 
 /** One pacing tick: step one tile along the axis, or turn around at the range limit / when blocked. */
