@@ -1,0 +1,129 @@
+.battle-hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.battle-hud > * {
+  pointer-events: auto;
+}
+
+.battle-hud.hidden {
+  display: none;
+}
+
+/* Top-left: enemy stats. */
+.battle-enemy {
+  left: 3%;
+  top: 4%;
+  width: 44%;
+}
+
+/* Right, above the bottom bar: player stats. */
+.battle-player {
+  right: 3%;
+  bottom: 31%;
+  width: 44%;
+}
+
+/* Bottom bar: narration on the left, action menu in the bottom-right corner. */
+.battle-bottom {
+  left: 3%;
+  right: 3%;
+  bottom: 3%;
+  height: 25%;
+  display: flex;
+  gap: 1em;
+}
+
+.battle-name {
+  margin-bottom: 0.4em;
+}
+
+.battle-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.3em;
+}
+
+.battle-tags {
+  min-height: 1.6em;
+  margin-top: 0.4em;
+}
+
+.tag {
+  display: inline-block;
+  font-size: 0.75em;
+  padding: 0.1em 0.5em;
+  border: 0.15em solid #4a7fb5;
+  border-radius: 0.3em;
+  color: #2b5f93;
+  background: #e2f0ff;
+}
+
+.bar {
+  height: 0.7em;
+  background: #ddd;
+  border: 0.15em solid #222;
+  margin-top: 0.2em;
+}
+
+.bar > i {
+  display: block;
+  height: 100%;
+  transition: width 0.35s ease-out;
+}
+
+.bar.hp > i {
+  background: #3cb043;
+}
+
+.bar.hp.low > i {
+  background: #e0443d;
+}
+
+.bar.mp > i {
+  background: #3d6ee0;
+}
+
+.battle-text {
+  flex: 1;
+  position: relative;
+  cursor: default;
+}
+
+.battle-text.more::after {
+  content: "▼";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  animation: blink 0.8s steps(2) infinite;
+}
+
+.battle-menu {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 1em;
+  border-left: 0.2em solid #ccc;
+  width: 44%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-content: center;
+  gap: 0.6em 0.5em;
+}
+
+.battle-menu li {
+  cursor: pointer;
+  padding-left: 1.2em;
+  position: relative;
+}
+
+.battle-menu li.dimmed {
+  color: #999;
+}
+
+.battle-menu li.selected::before {
+  content: "▶";
+  position: absolute;
+  left: 0;
+}

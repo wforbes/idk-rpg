@@ -130,6 +130,7 @@ export class OverworldScene extends Phaser.Scene {
     const live = entity as LiveEntity;
     if (live.kind === "npc" && live.dialogueId) this.startDialogue(new DialogueRunner(DIALOGUES[live.dialogueId]));
     if (live.kind === "item" && live.itemId) this.pickUpItem(live);
+    if (live.kind === "enemy" && live.enemyId) this.startBattle(live);
   }
 
   protected isEntityActive(entity: Entity): boolean {
@@ -174,6 +175,7 @@ export class OverworldScene extends Phaser.Scene {
 
   private setupInput(): void {
     const kb = this.input.keyboard!;
+    kb.enableGlobalCapture(); // the battle scene turns it off so the code editor can receive keys
     const K = Phaser.Input.Keyboard.KeyCodes;
     const keys = (...codes: number[]) => codes.map((c) => kb.addKey(c));
     this.keys = {
@@ -272,6 +274,19 @@ export class OverworldScene extends Phaser.Scene {
   private interact(): void {
     const target = findInteractable(this.playerPos, this.facing, this.entities);
     if (target) this.onInteract(target);
+  }
+
+  private startBattle(enemy: LiveEntity): void {
+    this.mode = "transition";
+    const returnTo = { mapKey: this.area.key, x: this.playerPos.x, y: this.playerPos.y, facing: this.facing };
+    const cam = this.cameras.main;
+    cam.flash(250, 255, 255, 255);
+    cam.once(Phaser.Cameras.Scene2D.Events.FLASH_COMPLETE, () => {
+      cam.fadeOut(200);
+      cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () =>
+        this.scene.start(SCENES.battle, { enemyId: enemy.enemyId, enemyEntityId: enemy.id, returnTo }),
+      );
+    });
   }
 
   private pickUpItem(item: LiveEntity): void {

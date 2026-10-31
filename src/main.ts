@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import "./styles.css";
 import { BootScene } from "./scenes/BootScene";
+import { BattleScene } from "./scenes/BattleScene";
 import { OverworldScene } from "./scenes/OverworldScene";
 
 export const GAME_WIDTH = 320;
@@ -17,7 +18,7 @@ const game = new Phaser.Game({
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, OverworldScene],
+  scene: [BootScene, OverworldScene, BattleScene],
 });
 
 // Dev-only handle for poking at scenes from the browser console.

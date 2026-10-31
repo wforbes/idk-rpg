@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { getSandbox } from "../battle/sandbox";
 import { SCENES } from "./keys";
 import { generateTextures } from "./textures";
 
@@ -20,6 +21,7 @@ export class BootScene extends Phaser.Scene {
 
   create(): void {
     generateTextures(this);
+    void getSandbox(); // warm up the code sandbox before the first fight
     this.scene.start(SCENES.overworld);
   }
 }

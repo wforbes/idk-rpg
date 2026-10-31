@@ -50,5 +50,16 @@ export function pickUp(s: GameState, entityId: string, itemId: string): boolean 
   return true;
 }
 
+/**
+ * Wraps up a fight. Phase 1 has no healing, so HP and MP are fully restored whatever happened.
+ * Returns where the player should appear: back where they were, or at the respawn point after a blackout.
+ */
+export function endBattle(s: GameState, outcome: "won" | "lost" | "fled", enemyEntityId: string, returnTo: Respawn): Respawn {
+  if (outcome === "won") setFlag(s, `defeated:${enemyEntityId}`);
+  s.player.hp = s.player.maxHp;
+  s.player.mana = s.player.maxMana;
+  return outcome === "lost" ? { ...s.respawn } : returnTo;
+}
+
 /** The app-wide instance. */
 export const gameState: GameState = createGameState();

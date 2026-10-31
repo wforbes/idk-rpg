@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import { describe, expect, test } from "vitest";
 import { parseTiledMap } from "../world/areaMap";
-import { createGameState, hasFlag, pickUp, setFlag } from "./gameState";
+import { createGameState, endBattle, hasFlag, pickUp, setFlag, type Respawn } from "./gameState";
 
 describe("game state", () => {
   test("starting stats", () => {
@@ -31,5 +31,38 @@ describe("game state", () => {
     parseTiledMap("route", JSON.parse(fs.readFileSync("public/assets/maps/route.json", "utf8")));
     expect(hasFlag(s, "defeated:route:3")).toBe(true);
     expect(hasFlag(s, "defeated:route:4")).toBe(false);
+  });
+});
+
+describe("endBattle", () => {
+  const returnTo: Respawn = { mapKey: "route", x: 11, y: 7, facing: "right" };
+
+  test("won sets defeated and returns returnTo", () => {
+    const s = createGameState();
+    expect(endBattle(s, "won", "route:3", returnTo)).toEqual(returnTo);
+    expect(hasFlag(s, "defeated:route:3")).toBe(true);
+  });
+
+  test("lost returns respawn and restores HP and MP", () => {
+    const s = createGameState();
+    s.player.hp = 0;
+    s.player.mana = 1;
+    expect(endBattle(s, "lost", "route:3", returnTo)).toEqual({ mapKey: "town", x: 15, y: 12, facing: "down" });
+    expect(s.player.hp).toBe(30);
+    expect(s.player.mana).toBe(10);
+    expect(hasFlag(s, "defeated:route:3")).toBe(false);
+  });
+
+  test("fled keeps the enemy undefeated", () => {
+    const s = createGameState();
+    expect(endBattle(s, "fled", "route:3", returnTo)).toEqual(returnTo);
+    expect(hasFlag(s, "defeated:route:3")).toBe(false);
+  });
+
+  test("defeated enemies stay defeated after a later blackout", () => {
+    const s = createGameState();
+    endBattle(s, "won", "route:3", returnTo);
+    endBattle(s, "lost", "route:9", returnTo);
+    expect(hasFlag(s, "defeated:route:3")).toBe(true);
   });
 });
