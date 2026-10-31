@@ -79,7 +79,7 @@ export function parseTiledMap(key: string, json: unknown): AreaMap {
       case "npc": {
         const pace = str("pace");
         if (pace !== "none" && pace !== "x" && pace !== "y") throw new Error(`Map "${key}" npc ${obj.id}: bad pace "${pace}"`);
-        map.npcs.push({ id, x, y, dialogueId: str("dialogueId"), pace, paceRange: int("paceRange") });
+        map.npcs.push({ id, name: obj.name ?? "", x, y, dialogueId: str("dialogueId"), pace, paceRange: int("paceRange") });
         break;
       }
       case "item":

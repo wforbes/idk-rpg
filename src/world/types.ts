@@ -14,6 +14,8 @@ export interface Warp extends TilePos {
 
 export interface NpcSpawn extends TilePos {
   id: string;
+  /** The Tiled object's name, e.g. "mo"; picks the NPC's sprite. */
+  name: string;
   dialogueId: string;
   pace: "none" | "x" | "y";
   paceRange: number;

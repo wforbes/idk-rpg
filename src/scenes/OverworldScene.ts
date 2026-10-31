@@ -32,6 +32,7 @@ const STEP_MS = 150;
 const PACE_MS = 1500;
 const FADE_MS = 150;
 const TYPE_MS = 30;
+const OPPOSITE: Record<Facing, Facing> = { up: "down", down: "up", left: "right", right: "left" };
 
 export class OverworldScene extends Phaser.Scene {
   private area!: AreaMap;
@@ -128,7 +129,10 @@ export class OverworldScene extends Phaser.Scene {
 
   protected onInteract(entity: Entity): void {
     const live = entity as LiveEntity;
-    if (live.kind === "npc" && live.dialogueId) this.startDialogue(new DialogueRunner(DIALOGUES[live.dialogueId]));
+    if (live.kind === "npc" && live.dialogueId) {
+      this.faceEntity(live, OPPOSITE[this.facing]);
+      this.startDialogue(new DialogueRunner(DIALOGUES[live.dialogueId]));
+    }
     if (live.kind === "item" && live.itemId) this.pickUpItem(live);
     if (live.kind === "enemy" && live.enemyId) this.startBattle(live);
   }
@@ -142,18 +146,21 @@ export class OverworldScene extends Phaser.Scene {
   // --- setup -----------------------------------------------------------------
 
   private spawnEntities(): void {
-    const add = (e: Omit<LiveEntity, "sprite">, texture: string) => {
+    const add = (e: Omit<LiveEntity, "sprite">, texture: string, frame?: string) => {
       if (!this.isEntityActive(e)) return;
-      const sprite = this.add.sprite(...this.tileToWorld(e), texture).setOrigin(0).setDepth(9);
+      const sprite = this.add.sprite(...this.tileToWorld(e), texture, frame).setOrigin(0).setDepth(9);
       this.entities.push({ ...e, sprite });
     };
     for (const n of this.area.npcs) {
+      // Humanoid NPCs have their own facing frames (see art/npcSprites.ts); others use the generic sprite.
+      const humanoid = this.textures.exists(`npc-${n.name}`);
       add(
         {
           kind: "npc", id: n.id, x: n.x, y: n.y, dialogueId: n.dialogueId,
           pacing: { originX: n.x, originY: n.y, x: n.x, y: n.y, pace: n.pace, paceRange: n.paceRange, dirSign: 1 },
         },
-        "npc",
+        humanoid ? `npc-${n.name}` : "npc",
+        humanoid ? "down" : undefined,
       );
     }
     for (const i of this.area.items) add({ kind: "item", id: i.id, x: i.x, y: i.y, itemId: i.itemId }, "item");
@@ -257,6 +264,7 @@ export class OverworldScene extends Phaser.Scene {
       const next = nextPaceStep(e.pacing, (p) => paceTileFree(this.area, p, blockers));
       e.pacing = next;
       if (next.x === e.x && next.y === e.y) continue;
+      this.faceEntity(e, next.x > e.x ? "right" : next.x < e.x ? "left" : next.y > e.y ? "down" : "up");
       e.x = next.x;
       e.y = next.y;
       const [x, y] = this.tileToWorld(next);
@@ -348,6 +356,11 @@ export class OverworldScene extends Phaser.Scene {
     this.dialogueBox.close();
     this.holdLock = true;
     this.mode = "explore";
+  }
+
+  /** Turns an entity's sprite, if its texture has facing frames. */
+  private faceEntity(e: LiveEntity, facing: Facing): void {
+    if (e.sprite.texture.has(facing)) e.sprite.setFrame(facing);
   }
 
   private tileToWorld(p: TilePos): [number, number] {

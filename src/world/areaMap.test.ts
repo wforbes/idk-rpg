@@ -54,7 +54,7 @@ describe("parseTiledMap", () => {
   });
 
   test("builds entity ids", () => {
-    expect(map.npcs).toEqual([{ id: "town:7", x: 3, y: 2, dialogueId: "mo", pace: "x", paceRange: 2 }]);
+    expect(map.npcs).toEqual([{ id: "town:7", name: "mo", x: 3, y: 2, dialogueId: "mo", pace: "x", paceRange: 2 }]);
     expect(map.items).toEqual([{ id: "town:8", x: 1, y: 2, itemId: "spaceHeater" }]);
     expect(map.enemies).toEqual([{ id: "town:9", x: 2, y: 2, enemyId: "bugblob" }]);
   });

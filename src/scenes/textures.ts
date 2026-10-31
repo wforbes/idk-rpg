@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { NPC_PALETTES } from "../art/npcSprites";
 import { PLAYER_FRAMES, PLAYER_PALETTE } from "../art/playerSprite";
 import type { Facing } from "../world/types";
 
@@ -6,13 +7,9 @@ import type { Facing } from "../world/types";
 export function generateTextures(scene: Phaser.Scene): void {
   const g = scene.make.graphics({}, false);
 
-  // Player: 4 frames side by side (down, up, left, right), painted from pixel maps.
-  const facings: Facing[] = ["down", "up", "left", "right"];
-  facings.forEach((facing, i) => paintPixels(g, PLAYER_FRAMES[facing], PLAYER_PALETTE, i * 16, 0));
-  g.generateTexture("player", 64, 16);
-  const player = scene.textures.get("player");
-  facings.forEach((f, i) => player.add(f, 0, i * 16, 0, 16, 16));
-  g.clear();
+  // Player and humanoid NPCs: 4 facing frames each, painted from the same pixel maps.
+  paintHumanoid(scene, g, "player", PLAYER_PALETTE);
+  for (const [name, palette] of Object.entries(NPC_PALETTES)) paintHumanoid(scene, g, `npc-${name}`, palette);
 
   // NPC: orange villager.
   g.fillStyle(0x7a3b12).fillRoundedRect(3, 2, 10, 13, 3);
@@ -52,6 +49,16 @@ function drawBlob(g: Phaser.GameObjects.Graphics, ox: number, oy: number, size: 
   g.fillStyle(0x7bb662).fillEllipse(ox + 8 * s, oy + 10 * s, 12 * s, 9 * s);
   g.fillStyle(0xbfe6a8).fillEllipse(ox + 6 * s, oy + 8 * s, 3 * s, 2 * s);
   g.fillStyle(0x111111).fillRect(ox + 5 * s, oy + 9 * s, Math.max(1, s), 2 * s).fillRect(ox + 10 * s, oy + 9 * s, Math.max(1, s), 2 * s);
+}
+
+/** Paints the 4 body frames side by side into one texture with frames named down/up/left/right. */
+function paintHumanoid(scene: Phaser.Scene, g: Phaser.GameObjects.Graphics, key: string, palette: Record<string, number>): void {
+  const facings: Facing[] = ["down", "up", "left", "right"];
+  facings.forEach((facing, i) => paintPixels(g, PLAYER_FRAMES[facing], palette, i * 16, 0));
+  g.generateTexture(key, 64, 16);
+  const texture = scene.textures.get(key);
+  facings.forEach((f, i) => texture.add(f, 0, i * 16, 0, 16, 16));
+  g.clear();
 }
 
 /** Paints a pixel map (one character per pixel, "." = transparent) at the given offset and scale. */
