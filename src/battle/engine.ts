@@ -51,22 +51,22 @@ export function snapshotFor(s: BattleState, side: Side): Snapshot {
  * Dry run when the player presses Cast: catches mistakes that should send them back to
  * the editor without losing the turn. A fizzle is allowed — learning the window is part of play.
  */
-export function precheck(s: BattleState, code: string, runCode: RunCode): { ok: true } | { ok: false; message: string } {
+export type PrecheckResult = { ok: true; logs: string[] } | { ok: false; message: string; logs: string[] };
+
+export function precheck(s: BattleState, code: string, runCode: RunCode): PrecheckResult {
   const result = runCode(code, snapshotFor(s, "player"), { actions: PLAYER_ABILITIES, rolls: [] });
-  if (!result.ok) return { ok: false, message: result.error };
-  if (!result.intents.length) return { ok: false, message: "Your code didn't cast anything. Try calling ember(…) with some mana." };
+  const { logs } = result;
+  const fail = (message: string): PrecheckResult => ({ ok: false, message, logs });
+  if (!result.ok) return fail(result.error);
+  if (!result.intents.length) return fail("Your code didn't cast anything. Try calling ember(…) with some mana.");
 
   for (const e of applyIntents(structuredClone(s), "player", PLAYER_ABILITIES, result.intents)) {
-    if (e.type === "rejected" && e.reason === "extraDamagingCast") return { ok: false, message: "Only one damaging spell per turn." };
-    if (e.type === "rejected" && e.reason === "badFuel") {
-      return { ok: false, message: `${e.spell} needs a whole number of mana, like ${e.spell}(4).` };
-    }
-    if (e.type === "rejected") return { ok: false, message: `You don't know a spell called ${e.spell} yet.` };
-    if (e.type === "notEnoughMana") {
-      return { ok: false, message: `Not enough mana: ${e.spell}(${e.fuel}) needs ${e.fuel} MP and you have ${e.mana}.` };
-    }
+    if (e.type === "rejected" && e.reason === "extraDamagingCast") return fail("Only one damaging spell per turn.");
+    if (e.type === "rejected" && e.reason === "badFuel") return fail(`${e.spell} needs a whole number of mana, like ${e.spell}(4).`);
+    if (e.type === "rejected") return fail(`You don't know a spell called ${e.spell} yet.`);
+    if (e.type === "notEnoughMana") return fail(`Not enough mana: ${e.spell}(${e.fuel}) needs ${e.fuel} MP and you have ${e.mana}.`);
   }
-  return { ok: true };
+  return { ok: true, logs };
 }
 
 /**
@@ -109,7 +109,8 @@ function act(draft: BattleState, side: Side, playerCode: string, deps: TurnDeps)
   const actions = isPlayer ? PLAYER_ABILITIES : def.abilities;
   const rolls = isPlayer ? [] : [deps.rng(), deps.rng(), deps.rng()];
   const result = deps.runCode(isPlayer ? playerCode : def.script, snapshotFor(draft, side), { actions, rolls });
-  if (!result.ok) return [{ type: "codeError", who: side, message: result.error }];
-  if (!result.intents.length) return [{ type: "noAction", who: side }];
-  return applyIntents(draft, side, actions, result.intents);
+  const logs: BattleEvent[] = isPlayer ? result.logs.map((text) => ({ type: "log", who: side, text })) : [];
+  if (!result.ok) return [...logs, { type: "codeError", who: side, message: result.error }];
+  if (!result.intents.length) return [...logs, { type: "noAction", who: side }];
+  return [...logs, ...applyIntents(draft, side, actions, result.intents)];
 }

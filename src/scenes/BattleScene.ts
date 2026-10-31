@@ -7,6 +7,7 @@ import type { BattleEvent, BattleState, RunCode } from "../battle/types";
 import { stepView, viewOf } from "../battle/view";
 import { endBattle, gameState, type Respawn } from "../state/gameState";
 import { BattleHud, type MenuChoice } from "../ui/battleHud";
+import { openCastingOverlay } from "../ui/castingOverlay";
 import { SCENES } from "./keys";
 
 export interface BattleData {
@@ -65,9 +66,29 @@ export class BattleScene extends Phaser.Scene {
     this.playerTurn();
   }
 
-  /** Opens the casting overlay (Task 12). */
   protected openSpell(): void {
-    this.playerTurn();
+    const keyboard = this.input.keyboard;
+    if (keyboard) keyboard.enabled = false;
+    this.hud.setHidden(true);
+    const restore = () => {
+      if (keyboard) keyboard.enabled = true;
+      this.hud.setHidden(false);
+    };
+    const overlay = openCastingOverlay({
+      state: this.state,
+      initialCode: this.lastCode,
+      runCode: this.runCode,
+      onCast: (code) => {
+        restore();
+        this.lastCode = code;
+        void this.resolve({ kind: "cast", code });
+      },
+      onBack: () => {
+        restore();
+        this.playerTurn();
+      },
+    });
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => overlay.close());
   }
 
   protected async resolve(action: PlayerAction): Promise<void> {

@@ -1,0 +1,150 @@
+import { indentWithTab } from "@codemirror/commands";
+import { javascript } from "@codemirror/lang-javascript";
+import { keymap } from "@codemirror/view";
+import { oneDark } from "@codemirror/theme-one-dark";
+import { basicSetup, EditorView } from "codemirror";
+import { ABILITIES } from "../battle/abilities";
+import { ENEMIES, PLAYER_ABILITIES } from "../battle/enemies";
+import { precheck, snapshotFor } from "../battle/engine";
+import type { BattleState, RunCode } from "../battle/types";
+import { awarenessRows, type AwarenessTab } from "./awareness";
+import { el, uiRoot } from "./dom";
+import "./castingOverlay.css";
+
+export interface CastingOverlayOptions {
+  state: BattleState;
+  initialCode: string;
+  runCode: RunCode;
+  onCast(code: string): void;
+  onBack(): void;
+}
+
+/** What each spell does, in the spellbook's words. The fuel window comes from the ability itself. */
+const SPELL_NOTES: Record<string, string> = {
+  ember: "burns · a full 5 MP melts ice",
+};
+
+/**
+ * The spellbook overlay: tell, code editor, spellbook, awareness panel, Cast / Back.
+ * Cast runs a dry-run precheck; mistakes stay here and cost no turn.
+ */
+export function openCastingOverlay(opts: CastingOverlayOptions): { close(): void } {
+  const { state } = opts;
+  const snapshot = snapshotFor(state, "player");
+
+  const backdrop = el("div", "casting-backdrop");
+  const book = el("div", "casting");
+  backdrop.append(book);
+
+  const tell = el("div", "casting-tell", ENEMIES[state.enemyId].tell(state));
+
+  const editorHost = el("div", "casting-editor");
+
+  const spellbook = el("div", "casting-col casting-book");
+  spellbook.append(el("h3", "", "Spellbook"));
+  for (const id of PLAYER_ABILITIES) {
+    const ability = ABILITIES[id];
+    const entry = el("div", "spell");
+    entry.append(el("code", "", `${id}(mana)`));
+    const window = ability.fuel ? `${ability.fuel.min}–${ability.fuel.max} MP · ` : "";
+    entry.append(el("p", "", `${window}${SPELL_NOTES[id] ?? ""}`));
+    spellbook.append(entry);
+  }
+
+  const aware = el("div", "casting-col casting-aware");
+  const tabs = el("div", "aware-tabs");
+  const rows = el("dl", "aware-rows");
+  let tab: AwarenessTab = "enemy";
+  const renderAwareness = () => {
+    tabs.replaceChildren(
+      ...(["self", "world", "enemy"] as const).map((t) => {
+        const b = el("button", t === tab ? "on" : "", t);
+        b.type = "button";
+        b.addEventListener("click", () => {
+          tab = t;
+          renderAwareness();
+        });
+        return b;
+      }),
+    );
+    rows.replaceChildren(
+      ...awarenessRows(snapshot, tab).flatMap((r) => [el("dt", "", r.label), el("dd", "", r.value)]),
+    );
+  };
+  renderAwareness();
+  aware.append(el("h3", "", "Awareness"), tabs, rows);
+
+  const status = el("div", "casting-status");
+  const message = el("div", "casting-message");
+  const mp = el("span", "casting-mp", `MP ${state.player.mana}/${state.player.maxMana}`);
+  const back = el("button", "casting-back", "Back");
+  const castBtn = el("button", "casting-cast", "▶ Cast");
+  back.title = "Esc";
+  castBtn.title = "Ctrl+Enter";
+  back.type = castBtn.type = "button";
+  const buttons = el("div", "casting-buttons");
+  buttons.append(mp, back, castBtn);
+  status.append(message, el("div", "casting-hint", "Ctrl+Enter casts · Esc goes back"), buttons);
+
+  book.append(tell, editorHost, spellbook, aware, status);
+  uiRoot().append(backdrop);
+
+  const cast = () => {
+    const code = editor.state.doc.toString();
+    const result = precheck(state, code, opts.runCode);
+    if (result.ok) {
+      close();
+      opts.onCast(code);
+      return true;
+    }
+    message.replaceChildren(
+      el("div", "casting-error", result.message),
+      ...result.logs.map((l) => el("div", "casting-log", `console.log: ${l}`)),
+    );
+    return true;
+  };
+  const goBack = () => {
+    close();
+    opts.onBack();
+    return true;
+  };
+
+  const editor = new EditorView({
+    doc: opts.initialCode,
+    parent: editorHost,
+    extensions: [
+      keymap.of([
+        { key: "Mod-Enter", run: cast },
+        { key: "Escape", run: goBack },
+      ]),
+      basicSetup,
+      keymap.of([indentWithTab]),
+      javascript(),
+      oneDark,
+      EditorView.lineWrapping,
+    ],
+  });
+
+  // Esc / Ctrl+Enter also work when focus is on a button or tab rather than the editor.
+  const onKey = (e: KeyboardEvent) => {
+    if (e.target instanceof Element && e.target.closest(".cm-editor")) return;
+    if (e.key === "Escape") goBack();
+    else if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) cast();
+  };
+  backdrop.addEventListener("keydown", onKey);
+  back.addEventListener("click", goBack);
+  castBtn.addEventListener("click", cast);
+
+  // Put the cursor at the end so the player can start typing right away.
+  editor.focus();
+  editor.dispatch({ selection: { anchor: editor.state.doc.length } });
+
+  let closed = false;
+  function close() {
+    if (closed) return;
+    closed = true;
+    editor.destroy();
+    backdrop.remove();
+  }
+  return { close };
+}

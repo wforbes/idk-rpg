@@ -63,6 +63,7 @@ export type BattleEvent =
   | { type: "shieldMelted"; who: Side }
   | { type: "damage"; who: Side; target: Side; amount: number }
   | { type: "regen"; who: Side; amount: number }
+  | { type: "log"; who: Side; text: string }
   | { type: "fled" }
   | { type: "won" }
   | { type: "lost" };

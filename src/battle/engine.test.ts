@@ -128,6 +128,18 @@ describe("resolveTurn", () => {
     expect(state.outcome).toBe("ongoing");
   });
 
+  test("console.log output from the real run becomes log events", () => {
+    const { events } = resolveTurn(fresh(), cast("console.log(enemy.shielded); ember(enemy.shielded ? 5 : 3)"), deps(SHIELD));
+    const i = events.findIndex((e) => e.type === "log");
+    expect(events[i]).toEqual({ type: "log", who: "player", text: "true" });
+    expect(events[i + 1]).toMatchObject({ type: "cast", who: "player", fuel: 5 });
+  });
+
+  test("logs are kept even when the code throws", () => {
+    const { events } = resolveTurn(fresh(), cast('console.log("hi"); throw new Error("x")'), deps(SLAP));
+    expect(events.filter((e) => e.type === "log" || e.type === "codeError").map((e) => e.type)).toEqual(["log", "codeError"]);
+  });
+
   test("no cast is reported as noAction", () => {
     const { events } = resolveTurn(fresh(), cast("const x = 1;"), deps(SLAP));
     expect(events).toContainEqual({ type: "noAction", who: "player" });
@@ -195,6 +207,11 @@ describe("precheck", () => {
     const s = fresh();
     s.player.mana = 3;
     expect(msg(s, "ember(5)")).toBe("Not enough mana: ember(5) needs 5 MP and you have 3.");
+  });
+
+  test("precheck returns the dry run's logs", () => {
+    expect(precheck(fresh(), 'console.log("a"); ember(4)', runCode)).toEqual({ ok: true, logs: ["a"] });
+    expect(precheck(fresh(), 'console.log("b")', runCode)).toMatchObject({ ok: false, logs: ["b"] });
   });
 
   test("precheck does not mutate state", () => {

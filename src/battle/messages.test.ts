@@ -24,6 +24,7 @@ const ALL: BattleEvent[] = [
   { type: "damage", who: "player", target: "enemy", amount: 8 },
   { type: "damage", who: "enemy", target: "player", amount: 5 },
   { type: "regen", who: "player", amount: 2 },
+  { type: "log", who: "player", text: "true" },
   { type: "fled" },
   { type: "won" },
   { type: "lost" },
@@ -44,6 +45,10 @@ describe("describeEvent", () => {
 
   test("blocked copy", () => {
     expect(describeEvent({ type: "blocked", who: "player", spell: "ember" }, s)).toBe("Bugblob's ice shield swallowed the flames!");
+  });
+
+  test("log copy", () => {
+    expect(describeEvent({ type: "log", who: "player", text: "shielded? true" }, s)).toBe("console.log: shielded? true");
   });
 
   test("won copy", () => {

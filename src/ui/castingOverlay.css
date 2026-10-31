@@ -1,0 +1,170 @@
+/* The battle dims; a spellbook panel covers ~90% of the screen. */
+.casting-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 10, 20, 0.6);
+}
+
+.casting {
+  position: absolute;
+  inset: 4%;
+  background: #f3e6c4;
+  border: 0.35em solid #222;
+  border-radius: 0.8em;
+  padding: 0.9em;
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1fr;
+  grid-template-rows: auto 1fr auto;
+  gap: 0.8em;
+  color: #111;
+}
+
+.casting h3 {
+  margin: 0 0 0.6em;
+  font-size: 0.9em;
+  border-bottom: 0.15em solid #a88;
+  padding-bottom: 0.3em;
+}
+
+.casting-tell {
+  grid-column: 1 / 4;
+  background: #fff4d6;
+  border: 0.25em solid #b8860b;
+  border-radius: 0.5em;
+  padding: 0.6em 0.8em;
+  font-size: 0.85em;
+  line-height: 1.6;
+}
+
+.casting-editor {
+  grid-row: 2 / 4;
+  min-height: 0;
+  border: 0.25em solid #222;
+  border-radius: 0.5em;
+  overflow: hidden;
+  background: #282c34;
+}
+
+.casting-editor .cm-editor {
+  height: 100%;
+  font-family: var(--code-font);
+  font-size: 1.35em;
+}
+
+.casting-editor .cm-editor.cm-focused {
+  outline: none;
+}
+
+.casting-col {
+  min-height: 0;
+  overflow: auto;
+  font-size: 0.85em;
+}
+
+.casting code,
+.aware-rows dt,
+.aware-rows dd {
+  font-family: var(--code-font);
+  font-size: 1.25em;
+}
+
+.spell code {
+  color: #1d4ed8;
+  font-weight: bold;
+}
+
+.spell p {
+  margin: 0.3em 0 0.8em;
+  line-height: 1.5;
+}
+
+.aware-tabs {
+  display: flex;
+  gap: 0.25em;
+  margin-bottom: 0.4em;
+}
+
+.aware-tabs button,
+.casting-buttons button {
+  font: inherit;
+  cursor: pointer;
+  border: 0.15em solid #222;
+  border-radius: 0.35em;
+  background: #e6d7b0;
+  padding: 0.25em 0.5em;
+}
+
+.aware-tabs button {
+  flex: 1;
+  font-size: 0.85em;
+}
+
+.aware-tabs button.on {
+  background: #fff8e6;
+  font-weight: bold;
+}
+
+.aware-rows {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.25em 0.5em;
+}
+
+.aware-rows dt {
+  color: #8a4b00;
+}
+
+.aware-rows dd {
+  margin: 0;
+  text-align: right;
+}
+
+.casting-status {
+  grid-column: 2 / 4;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  justify-content: flex-end;
+  font-size: 0.8em;
+}
+
+.casting-message {
+  max-height: 7em;
+  overflow: auto;
+  line-height: 1.5;
+}
+
+.casting-error {
+  color: #b42318;
+}
+
+.casting-log {
+  font-family: var(--code-font);
+  color: #444;
+}
+
+.casting-buttons {
+  display: flex;
+  gap: 0.5em;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.casting-mp {
+  margin-right: auto;
+}
+
+.casting-buttons > * {
+  white-space: nowrap;
+}
+
+.casting-hint {
+  color: #6b5a3a;
+  font-size: 0.85em;
+}
+
+.casting-buttons .casting-cast {
+  background: #e85c4a;
+  color: #fff;
+}

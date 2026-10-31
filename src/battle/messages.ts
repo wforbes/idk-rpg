@@ -34,6 +34,8 @@ export function describeEvent(e: BattleEvent, s: BattleState): string {
       return e.target === "player" ? `You take ${e.amount} damage.` : `${s.enemy.name} takes ${e.amount} damage.`;
     case "regen":
       return `You recover ${e.amount} MP.`;
+    case "log":
+      return `console.log: ${e.text}`;
     case "fled":
       return "You got away safely.";
     case "won":
