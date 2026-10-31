@@ -13,4 +13,11 @@ export const NPC_PALETTES: Record<string, Record<string, number>> = {
     T: 0x6a3fa3, // purple tunic shade
     p: 0x0055cc, // blue jeans pants
   },
+  lint: {
+    ...PLAYER_PALETTE,
+    h: 0xeeeef2, // white hair
+    t: 0xc98aa0, // dusty rose cardigan
+    T: 0xa66b80, // cardigan shade
+    p: 0x6b5f78, // plum skirt
+  },
 };
