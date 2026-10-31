@@ -192,7 +192,7 @@ Explicitly not required in slice 1: quests, the code-block (easy) mode, skill po
 
 **Builder's calls (Claude's defaults — override freely)**
 - **Game code:** TypeScript, bundled with **Vite**. Typed game state helps as combat rules grow.
-- **Engine:** **Phaser 3** — handles scenes (overworld / interior / battle), tilemaps, input, camera, and scaling, so effort goes into the game rather than plumbing.
+- **Engine:** **Phaser 4** (current stable; originally written as Phaser 3) — handles scenes (overworld / interior / battle), tilemaps, input, camera, and scaling, so effort goes into the game rather than plumbing.
 - **Maps:** authored in the **Tiled** map editor and loaded as JSON, so areas can be edited visually.
 - **In-game code editor:** **CodeMirror 6** — lightweight, good keyboard UX, works on mobile later. Rendered as HTML over the game canvas.
 - **Running player code:** a sandboxed JavaScript interpreter (e.g. QuickJS compiled to WebAssembly) with an instruction/time budget, evaluated once per turn at resolution time (§5.3a) against a snapshot of the awareness values at that moment. Player code does not directly change game state; it produces a list of **intended actions** (cast `ember` with 5, use `spaceHeater`) which the battle engine validates against the rules (one damaging cast, fuel budget, item limits) and then resolves. This keeps rules enforceable and makes "fizzle", "error", and "nice try, `enemy.hp` is read-only" messages straightforward.
