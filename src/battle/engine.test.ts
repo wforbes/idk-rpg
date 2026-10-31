@@ -1,0 +1,228 @@
+import { beforeAll, describe, expect, test } from "vitest";
+import { createGameState } from "../state/gameState";
+import { ENEMIES } from "./enemies";
+import { createBattle, precheck, resolveTurn, snapshotFor, TEMP_MAX, TEMP_MIN, type TurnDeps } from "./engine";
+import { getSandbox } from "./sandbox";
+import type { BattleEvent, BattleState, RunCode } from "./types";
+
+let runCode: RunCode;
+beforeAll(async () => {
+  runCode = (await getSandbox()).run;
+});
+
+/** rng that returns the given values in order, then 0.5 forever. 0.5 means "no temperature drift". */
+const rngOf = (values: number[]) => {
+  const queue = [...values];
+  return () => queue.shift() ?? 0.5;
+};
+const deps = (values: number[] = []): TurnDeps => ({ runCode, rng: rngOf(values) });
+const fresh = (): BattleState => createBattle("bugblob", createGameState().player);
+const cast = (code: string) => ({ kind: "cast" as const, code });
+const who = (e: BattleEvent) => ("who" in e ? e.who : null);
+
+// Roll order per turn: [temperature drift, enemy roll 1, enemy roll 2, enemy roll 3].
+const SHIELD = [0.5, 0.1]; // no drift; chance(0.5) succeeds → frostGather
+const SLAP = [0.5, 0.9]; // no drift; chance(0.5) fails → slimeSlap
+
+describe("createBattle", () => {
+  test("sets up Bugblob, the player and the world", () => {
+    const s = fresh();
+    expect(s.enemy).toMatchObject({ name: "Bugblob", level: 3, hp: 24, maxHp: 24, speed: 6, shielded: false });
+    expect(s.player).toMatchObject({ name: "You", hp: 30, maxHp: 30, mana: 10, maxMana: 10, speed: 5, shielded: false });
+    expect(s.world.temperature).toBe(24);
+    expect(s.turn).toBe(1);
+    expect(s.outcome).toBe("ongoing");
+  });
+});
+
+describe("snapshotFor", () => {
+  test("player view", () => {
+    expect(snapshotFor(fresh(), "player")).toEqual({
+      self: { hp: 30, maxHp: 30, mana: 10, maxMana: 10 },
+      world: { temperature: 24 },
+      enemy: { name: "Bugblob", hp: 24, maxHp: 24, shielded: false },
+    });
+  });
+
+  test("enemy view", () => {
+    expect(snapshotFor(fresh(), "enemy")).toEqual({
+      self: { name: "Bugblob", hp: 24, maxHp: 24, shielded: false },
+      world: { temperature: 24 },
+      enemy: { hp: 30, maxHp: 30, mana: 10 },
+    });
+  });
+});
+
+describe("resolveTurn", () => {
+  test("faster enemy acts before player", () => {
+    const { events } = resolveTurn(fresh(), cast("ember(3)"), deps(SLAP));
+    expect(events[0].type).toBe("worldChanged");
+    expect(who(events[1])).toBe("enemy");
+  });
+
+  test("tie goes to player", () => {
+    const s = fresh();
+    s.enemy.speed = 5;
+    const { events } = resolveTurn(s, cast("ember(3)"), deps(SLAP));
+    expect(who(events[1])).toBe("player");
+  });
+
+  test("code sees post-enemy state", () => {
+    const { state, events } = resolveTurn(fresh(), cast("ember(enemy.shielded ? 5 : 3)"), deps(SHIELD));
+    expect(events.map((e) => e.type)).toContain("shieldMelted");
+    expect(state.enemy.hp).toBe(24 - 10);
+    expect(state.enemy.shielded).toBe(false);
+  });
+
+  test("does not mutate the input state", () => {
+    const s = fresh();
+    const before = structuredClone(s);
+    resolveTurn(s, cast("ember(4)"), deps(SLAP));
+    expect(s).toEqual(before);
+  });
+
+  test("temperature drifts within bounds", () => {
+    let s = fresh();
+    const rng = Math.random;
+    for (let i = 0; i < 50; i++) {
+      s = resolveTurn(s, cast("ember(3)"), { runCode, rng }).state;
+      expect(s.world.temperature).toBeGreaterThanOrEqual(TEMP_MIN);
+      expect(s.world.temperature).toBeLessThanOrEqual(TEMP_MAX);
+      s.player.hp = s.player.maxHp;
+      s.enemy.hp = s.enemy.maxHp;
+      s.player.mana = s.player.maxMana;
+    }
+  });
+
+  test("temperature drift is reported first", () => {
+    const { state, events } = resolveTurn(fresh(), cast("ember(3)"), deps([1, 0.9]));
+    expect(state.world.temperature).toBe(27);
+    expect(events[0]).toEqual({ type: "worldChanged", temperature: 27 });
+  });
+
+  test("mana regenerates and caps", () => {
+    const { state, events } = resolveTurn(fresh(), cast("ember(3)"), deps(SLAP));
+    expect(state.player.mana).toBe(10 - 3 + 2);
+    expect(events).toContainEqual({ type: "regen", who: "player", amount: 2 });
+
+    const capped = fresh();
+    capped.player.mana = 9;
+    const r = resolveTurn(capped, cast("// nothing"), deps(SLAP));
+    expect(r.state.player.mana).toBe(10);
+    expect(r.events).toContainEqual({ type: "regen", who: "player", amount: 1 });
+  });
+
+  test("turn counter advances", () => {
+    expect(resolveTurn(fresh(), cast("ember(3)"), deps(SLAP)).state.turn).toBe(2);
+  });
+
+  test("run flees immediately", () => {
+    const { state, events } = resolveTurn(fresh(), { kind: "run" }, deps(SLAP));
+    expect(events).toEqual([{ type: "fled" }]);
+    expect(state.outcome).toBe("fled");
+  });
+
+  test("player code error costs the turn but not the battle", () => {
+    const { state, events } = resolveTurn(fresh(), cast('throw new Error("x")'), deps(SLAP));
+    expect(events).toContainEqual(expect.objectContaining({ type: "codeError", who: "player" }));
+    expect(state.outcome).toBe("ongoing");
+  });
+
+  test("no cast is reported as noAction", () => {
+    const { events } = resolveTurn(fresh(), cast("const x = 1;"), deps(SLAP));
+    expect(events).toContainEqual({ type: "noAction", who: "player" });
+  });
+
+  test("the battle stops when someone falls", () => {
+    const s = fresh();
+    s.player.hp = 5;
+    const { state, events } = resolveTurn(s, cast("ember(3)"), deps(SLAP));
+    expect(state.outcome).toBe("lost");
+    expect(events.at(-1)).toEqual({ type: "lost" });
+    expect(events.some((e) => e.type === "cast" && e.who === "player")).toBe(false);
+  });
+
+  test("Bugblob never shields twice in a row", () => {
+    const s = fresh();
+    s.enemy.shielded = true;
+    const { events } = resolveTurn(s, cast("ember(3)"), deps([0.5, 0.0, 0.0, 0.0]));
+    expect(events).toContainEqual({ type: "cast", who: "enemy", spell: "slimeSlap" });
+    expect(events.some((e) => e.type === "shieldUp")).toBe(false);
+  });
+
+  test("the winning pattern beats Bugblob", () => {
+    let s = fresh();
+    const rng = rngOf(Array.from({ length: 100 }, (_, i) => (i % 4 === 1 ? (i % 8 === 1 ? 0.1 : 0.9) : 0.5)));
+    for (let i = 0; i < 10 && s.outcome === "ongoing"; i++) {
+      s = resolveTurn(s, cast("ember(enemy.shielded ? 5 : 3)"), { runCode, rng }).state;
+    }
+    expect(s.outcome).toBe("won");
+  });
+});
+
+describe("precheck", () => {
+  const msg = (s: BattleState, code: string) => {
+    const r = precheck(s, code, runCode);
+    return r.ok ? "ok" : r.message;
+  };
+
+  test("accepts a legal cast", () => {
+    expect(msg(fresh(), "ember(4)")).toBe("ok");
+  });
+
+  test("allows a fizzle — learning the window is part of play", () => {
+    expect(msg(fresh(), "ember(9)")).toBe("ok");
+  });
+
+  test("code errors come back as the sandbox message", () => {
+    expect(msg(fresh(), "enemy.hp = 0")).toMatch(/enemy\.hp is read-only/);
+  });
+
+  test("casting nothing", () => {
+    expect(msg(fresh(), "// hmm")).toBe("Your code didn't cast anything. Try calling ember(…) with some mana.");
+  });
+
+  test("two damaging spells", () => {
+    expect(msg(fresh(), "ember(3); ember(3);")).toBe("Only one damaging spell per turn.");
+  });
+
+  test("bad fuel", () => {
+    expect(msg(fresh(), "ember(4.5)")).toBe("ember needs a whole number of mana, like ember(4).");
+    expect(msg(fresh(), 'ember("4")')).toBe("ember needs a whole number of mana, like ember(4).");
+  });
+
+  test("not enough mana", () => {
+    const s = fresh();
+    s.player.mana = 3;
+    expect(msg(s, "ember(5)")).toBe("Not enough mana: ember(5) needs 5 MP and you have 3.");
+  });
+
+  test("precheck does not mutate state", () => {
+    const s = fresh();
+    const before = structuredClone(s);
+    precheck(s, "ember(4)", runCode);
+    expect(s).toEqual(before);
+  });
+});
+
+describe("Bugblob tell", () => {
+  const tell = (s: BattleState) => ENEMIES.bugblob.tell(s);
+
+  test("warns about the shield when shielded", () => {
+    const s = fresh();
+    s.enemy.shielded = true;
+    expect(tell(s)).toBe("Bugblob's ice shield glistens. Weak flames won't get through.");
+  });
+
+  test("hints at a shield when unshielded", () => {
+    expect(tell(fresh())).toBe("Bugblob shivers and gathers frost… it might raise its shield before you act.");
+  });
+
+  test("mentions heat only when hot", () => {
+    const s = fresh();
+    s.world.temperature = 26;
+    expect(tell(s)).toMatch(/The air is hot — fire burns brighter\.$/);
+    s.world.temperature = 25;
+    expect(tell(s)).not.toMatch(/hot/);
+  });
+});
