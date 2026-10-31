@@ -27,3 +27,42 @@ export interface RunOptions {
 }
 
 export type RunCode = (code: string, snapshot: Snapshot, opts: RunOptions) => SandboxResult;
+
+export type Side = "player" | "enemy";
+
+export interface Fighter {
+  name: string;
+  level: number;
+  hp: number;
+  maxHp: number;
+  mana: number;
+  maxMana: number;
+  speed: number;
+  shielded: boolean;
+}
+
+export interface BattleState {
+  enemyId: string;
+  player: Fighter;
+  enemy: Fighter;
+  world: { temperature: number };
+  turn: number;
+  outcome: "ongoing" | "won" | "lost" | "fled";
+}
+
+export type BattleEvent =
+  | { type: "worldChanged"; temperature: number }
+  | { type: "codeError"; who: Side; message: string }
+  | { type: "noAction"; who: Side }
+  | { type: "rejected"; who: Side; spell: string; reason: "unknownSpell" | "extraDamagingCast" | "badFuel" }
+  | { type: "notEnoughMana"; who: Side; spell: string; fuel: number; mana: number }
+  | { type: "fizzle"; who: Side; spell: string; fuel: number; min: number; max: number }
+  | { type: "cast"; who: Side; spell: string; fuel?: number }
+  | { type: "blocked"; who: Side; spell: string }
+  | { type: "shieldUp"; who: Side }
+  | { type: "shieldMelted"; who: Side }
+  | { type: "damage"; who: Side; target: Side; amount: number }
+  | { type: "regen"; who: Side; amount: number }
+  | { type: "fled" }
+  | { type: "won" }
+  | { type: "lost" };
