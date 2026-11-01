@@ -22,6 +22,7 @@ export class BattleHud {
   private root = el("div", "battle-hud");
   private enemyName = el("div", "battle-name");
   private enemyHp = bar("hp");
+  private enemyWill = bar("will");
   private enemyTags = el("div", "battle-tags");
   private playerHpText = el("span");
   private playerHp = bar("hp");
@@ -36,11 +37,12 @@ export class BattleHud {
 
   constructor(
     names: { enemy: string; level: number },
-    private readonly max: { playerHp: number; playerMana: number; playerEnergy: number; enemyHp: number },
+    private readonly max: { playerHp: number; playerMana: number; playerEnergy: number; enemyHp: number; enemyResolve: number },
   ) {
     const enemyBox = el("div", "panel battle-enemy");
     this.enemyName.textContent = `${names.enemy.toUpperCase()}  Lv${names.level}`;
-    enemyBox.append(this.enemyName, this.enemyHp.wrap, this.enemyTags);
+    this.enemyWill.wrap.title = "Will to fight";
+    enemyBox.append(this.enemyName, this.enemyHp.wrap, this.enemyWill.wrap, this.enemyTags);
 
     const playerBox = el("div", "panel battle-player");
     playerBox.append(
@@ -60,6 +62,7 @@ export class BattleHud {
 
   update(v: BattleView): void {
     setBar(this.enemyHp, v.enemyHp, this.max.enemyHp);
+    setBar(this.enemyWill, v.enemyResolve, this.max.enemyResolve);
     const tags = (names: string[]) => names.map((t) => el("span", `tag tag-${t}`, t));
     this.enemyTags.replaceChildren(...tags([...(v.enemyShielded ? ["shielded"] : []), ...v.enemyStatuses]));
     this.playerTags.replaceChildren(...tags(v.playerStatuses));
@@ -194,7 +197,7 @@ interface Bar {
   fill: HTMLElement;
 }
 
-function bar(kind: "hp" | "mp" | "en"): Bar {
+function bar(kind: "hp" | "mp" | "en" | "will"): Bar {
   const wrap = el("div", `bar ${kind}`);
   const fill = el("i");
   wrap.append(fill);

@@ -58,12 +58,16 @@ export function applyIntents(draft: BattleState, user: Side, allowed: string[], 
     }
 
     events.push(...ability.apply(draft, user, spent));
+    // A knockout beats giving up when both happen on the same hit.
     if (draft.enemy.hp <= 0) {
       draft.outcome = "won";
       events.push({ type: "won" });
     } else if (draft.player.hp <= 0) {
       draft.outcome = "lost";
       events.push({ type: "lost" });
+    } else if (draft.enemy.maxResolve > 0 && draft.enemy.resolve <= 0) {
+      draft.outcome = "won";
+      events.push({ type: "gaveUp" });
     }
   }
   return events;

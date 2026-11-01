@@ -27,7 +27,7 @@ const SLAP = [0.5, 0.9]; // no drift; chance(0.5) fails → slimeSlap
 describe("createBattle", () => {
   test("sets up Bugblob, the player and the world", () => {
     const s = fresh();
-    expect(s.enemy).toMatchObject({ name: "Bugblob", level: 3, hp: 24, maxHp: 24, speed: 6, shielded: false });
+    expect(s.enemy).toMatchObject({ name: "Bugblob", level: 3, hp: 24, maxHp: 24, speed: 6, shielded: false, resolve: 50, maxResolve: 50 });
     expect(s.player).toMatchObject({ name: "You", hp: 30, maxHp: 30, mana: 10, maxMana: 10, energy: 12, maxEnergy: 12, speed: 5, shielded: false });
     expect(s.knownAbilities).toEqual(["ember", "jab"]);
     expect(s.world.temperature).toBe(24);
@@ -41,13 +41,16 @@ describe("snapshotFor", () => {
     expect(snapshotFor(fresh(), "player")).toEqual({
       self: { hp: 30, maxHp: 30, mana: 10, maxMana: 10, energy: 12, maxEnergy: 12, speed: 5, chilled: false },
       world: { temperature: 24 },
-      enemy: { name: "Bugblob", hp: 24, maxHp: 24, shielded: false, dodging: false, speed: 6, chilled: false, scared: false },
+      enemy: {
+        name: "Bugblob", hp: 24, maxHp: 24, shielded: false, dodging: false, speed: 6, chilled: false, scared: false,
+        resolve: 50, maxResolve: 50,
+      },
     });
   });
 
   test("enemy view", () => {
     expect(snapshotFor(fresh(), "enemy")).toEqual({
-      self: { name: "Bugblob", hp: 24, maxHp: 24, shielded: false, dodging: false, chilled: false, scared: false },
+      self: { name: "Bugblob", hp: 24, maxHp: 24, shielded: false, dodging: false, chilled: false, scared: false, resolve: 50 },
       world: { temperature: 24 },
       enemy: { hp: 30, maxHp: 30, mana: 10, energy: 12, chilled: false, speed: 5 },
     });
@@ -169,6 +172,19 @@ describe("resolveTurn", () => {
     expect(state.outcome).toBe("lost");
     expect(events.at(-1)).toEqual({ type: "lost" });
     expect(events.some((e) => e.type === "cast" && e.who === "player")).toBe(false);
+  });
+
+  test("pure taunting makes Bugblob give up within 4 turns", () => {
+    let s = createBattle("bugblob", createGameState().player, { knownAbilities: ["ember", "jab", "taunt"] });
+    const rng = rngOf(Array.from({ length: 40 }, () => 0.9)); // drift +2 each turn (capped); Bugblob always slaps
+    let turns = 0;
+    while (s.outcome === "ongoing" && turns < 4) {
+      s = resolveTurn(s, cast("taunt()"), { runCode, rng }).state;
+      turns++;
+    }
+    expect(s.outcome).toBe("won");
+    expect(s.enemy.resolve).toBe(0);
+    expect(s.enemy.hp).toBe(24);
   });
 
   test("Bugblob never shields twice in a row", () => {

@@ -4,7 +4,7 @@ import { applyIntents } from "./applyIntents";
 import type { BattleEvent, BattleState, Fighter, Intent } from "./types";
 
 const fighter = (over: Partial<Fighter> = {}): Fighter => ({
-  name: "X", level: 1, hp: 24, maxHp: 24, mana: 10, maxMana: 10, energy: 12, maxEnergy: 12, speed: 5, shielded: false, dodging: false, statuses: {}, traits: {}, ...over,
+  name: "X", level: 1, hp: 24, maxHp: 24, mana: 10, maxMana: 10, energy: 12, maxEnergy: 12, speed: 5, shielded: false, dodging: false, statuses: {}, traits: {}, resolve: 0, maxResolve: 0, ...over,
 });
 
 const battle = (opts: { player?: Partial<Fighter>; enemy?: Partial<Fighter>; temperature?: number } = {}): BattleState => ({
@@ -22,7 +22,8 @@ const battle = (opts: { player?: Partial<Fighter>; enemy?: Partial<Fighter>; tem
 });
 
 const ember = (fuel?: unknown): Intent => (fuel === undefined ? { spell: "ember" } : { spell: "ember", fuel });
-const cast = (s: BattleState, ...intents: Intent[]) => applyIntents(s, "player", ["ember", "jab"], intents);
+const cast = (s: BattleState, ...intents: Intent[]) => applyIntents(s, "player", ["ember", "jab", "frostbite", "taunt"], intents);
+const taunt: Intent = { spell: "taunt" };
 const jab = (fuel?: unknown): Intent => (fuel === undefined ? { spell: "jab" } : { spell: "jab", fuel });
 const types = (events: BattleEvent[]) => events.map((e) => e.type);
 
@@ -184,6 +185,76 @@ describe("applyIntents: jab and energy", () => {
     const s = battle({ player: { energy: 1 } });
     expect(cast(s, jab(2))).toEqual([{ type: "notEnoughFuel", who: "player", spell: "jab", fuel: 2, have: 1, resource: "energy" }]);
     expect(s.player.energy).toBe(1);
+  });
+});
+
+describe("applyIntents: resolve and taunt", () => {
+  const willing = (over: Partial<Fighter> = {}) => battle({ enemy: { resolve: 50, maxResolve: 50, ...over } });
+
+  test("taunt lowers resolve by 15 and scares", () => {
+    const s = willing();
+    const events = cast(s, taunt);
+    expect(s.enemy.resolve).toBe(35);
+    expect(s.enemy.statuses.scared).toBe(2);
+    expect(events).toEqual([
+      { type: "cast", who: "player", spell: "taunt" },
+      { type: "resolveLost", who: "enemy", amount: 15 },
+      { type: "statusApplied", who: "enemy", status: "scared", turns: 2 },
+    ]);
+  });
+
+  test("taunting a scared enemy costs 30", () => {
+    const s = willing({ statuses: { scared: 1 } });
+    cast(s, taunt);
+    expect(s.enemy.resolve).toBe(20);
+  });
+
+  test("taunt is the turn's one action", () => {
+    const s = willing();
+    expect(cast(s, taunt, ember(3)).at(-1)).toMatchObject({ type: "rejected", reason: "extraAction" });
+  });
+
+  test("damage lowers resolve by half, rounded up", () => {
+    const s = willing();
+    cast(s, ember(3)); // 6 damage
+    expect(s.enemy.resolve).toBe(47);
+    const t = willing();
+    cast(t, { spell: "frostbite", fuel: 3 }); // 3 damage
+    expect(t.enemy.resolve).toBe(48);
+  });
+
+  test("a scared enemy loses double resolve from damage", () => {
+    const s = willing({ statuses: { scared: 2 } });
+    cast(s, ember(3));
+    expect(s.enemy.resolve).toBe(44);
+  });
+
+  test("resolve never goes below 0", () => {
+    const s = willing({ resolve: 5, statuses: { scared: 2 } });
+    cast(s, taunt);
+    expect(s.enemy.resolve).toBe(0);
+  });
+
+  test("resolve 0 means the enemy gives up — a win", () => {
+    const s = willing({ resolve: 10 });
+    const events = cast(s, taunt);
+    expect(s.outcome).toBe("won");
+    expect(events.at(-1)).toEqual({ type: "gaveUp" });
+    expect(events.some((e) => e.type === "won")).toBe(false);
+  });
+
+  test("a lethal hit that also empties resolve is a knockout only", () => {
+    const s = willing({ hp: 3, resolve: 2 });
+    const events = cast(s, ember(5));
+    expect(s.outcome).toBe("won");
+    expect(events.at(-1)).toEqual({ type: "won" });
+    expect(events.some((e) => e.type === "gaveUp")).toBe(false);
+  });
+
+  test("fighters without resolve never give up", () => {
+    const s = battle();
+    cast(s, ember(3));
+    expect(s.outcome).toBe("ongoing");
   });
 });
 

@@ -31,11 +31,11 @@ export function createBattle(enemyId: string, player: PlayerStats, opts: BattleO
   if (!def) throw new Error(`unknown enemy: ${enemyId}`);
   return {
     enemyId,
-    player: { name: "You", level: 1, ...player, shielded: false, dodging: false, statuses: {}, traits: {} },
+    player: { name: "You", level: 1, ...player, shielded: false, dodging: false, statuses: {}, traits: {}, resolve: 0, maxResolve: 0 },
     enemy: {
       name: def.name, level: def.level, hp: def.maxHp, maxHp: def.maxHp,
       mana: 0, maxMana: 0, energy: 0, maxEnergy: 0, speed: def.speed, shielded: false, dodging: false,
-      statuses: {}, traits: {},
+      statuses: {}, traits: {}, resolve: def.maxResolve, maxResolve: def.maxResolve,
     },
     world: { temperature: START_TEMPERATURE },
     turn: 1,
@@ -62,6 +62,7 @@ export function snapshotFor(s: BattleState, side: Side): Snapshot {
       enemy: {
         name: e.name, hp: e.hp, maxHp: e.maxHp, shielded: e.shielded, dodging: e.dodging,
         speed: effectiveSpeed(e), chilled: !!e.statuses.chilled, scared: !!e.statuses.scared,
+        resolve: e.resolve, maxResolve: e.maxResolve,
       },
     };
   }
@@ -69,7 +70,7 @@ export function snapshotFor(s: BattleState, side: Side): Snapshot {
   return {
     self: {
       name: e.name, hp: e.hp, maxHp: e.maxHp, shielded: e.shielded, dodging: e.dodging,
-      chilled: !!e.statuses.chilled, scared: !!e.statuses.scared,
+      chilled: !!e.statuses.chilled, scared: !!e.statuses.scared, resolve: e.resolve,
     },
     world,
     enemy: { hp: p.hp, maxHp: p.maxHp, mana: p.mana, energy: p.energy, chilled: !!p.statuses.chilled, speed: effectiveSpeed(p) },

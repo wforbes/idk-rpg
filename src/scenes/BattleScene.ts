@@ -51,6 +51,7 @@ export class BattleScene extends Phaser.Scene {
         playerMana: this.state.player.maxMana,
         playerEnergy: this.state.player.maxEnergy,
         enemyHp: this.state.enemy.maxHp,
+        enemyResolve: this.state.enemy.maxResolve,
       },
     );
     this.hud.update(viewOf(this.state));
@@ -74,6 +75,7 @@ export class BattleScene extends Phaser.Scene {
   protected enabledMenu(): Set<MenuChoice> {
     const enabled = new Set<MenuChoice>(["attack", "spell", "run"]);
     if (this.state.items.length) enabled.add("item");
+    if (this.state.knownAbilities.includes("taunt")) enabled.add("taunt");
     return enabled;
   }
 
@@ -82,6 +84,7 @@ export class BattleScene extends Phaser.Scene {
     if (choice === "spell") return this.openSpell("spells");
     if (choice === "run") return this.resolve({ kind: "run" });
     if (choice === "item" && this.state.items.length) return this.openItems();
+    if (choice === "taunt" && this.state.knownAbilities.includes("taunt")) return this.resolve({ kind: "cast", code: "taunt();" });
     await this.hud.showMessages(["You haven't learned that yet."]);
     this.playerTurn();
   }
@@ -195,7 +198,7 @@ export class BattleScene extends Phaser.Scene {
       this.enemySprite.setTint(0xaee3ff);
     } else if (e.type === "shieldMelted") {
       this.enemySprite.clearTint();
-    } else if (e.type === "won") {
+    } else if (e.type === "won" || e.type === "gaveUp") {
       this.tweens.add({ targets: this.enemySprite, alpha: 0, y: this.enemySprite.y + 10, duration: 400 });
     }
   }

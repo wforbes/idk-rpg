@@ -49,6 +49,9 @@ export interface Fighter {
   statuses: Partial<Record<StatusName, number>>;
   /** Fixed quirks from the enemy definition. */
   traits: FighterTraits;
+  /** Will to fight; at 0 the fighter gives up. maxResolve 0 = never gives up (the player). */
+  resolve: number;
+  maxResolve: number;
 }
 
 export type StatusName = "chilled" | "scared";
@@ -101,6 +104,9 @@ export type BattleEvent =
   | { type: "statusApplied"; who: Side; status: StatusName; turns: number }
   | { type: "statusEnded"; who: Side; status: StatusName }
   | { type: "immune"; who: Side; status: StatusName }
+  | { type: "resolveLost"; who: Side; amount: number }
+  /** The enemy's will ran out — a win, distinct from a knockout ("won"). */
+  | { type: "gaveUp" }
   | { type: "itemUsed"; who: Side; item: string }
   | { type: "itemRejected"; who: Side; item: string; reason: "extraItem" | "notOwned" }
   | { type: "temperatureRaised"; temperature: number }

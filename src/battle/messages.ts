@@ -1,4 +1,5 @@
 import { ITEMS } from "../data/items";
+import { ENEMIES } from "./enemies";
 import type { BattleEvent, BattleState, Resource, Side } from "./types";
 
 const unit = (r: Resource) => (r === "mana" ? "MP" : "EN");
@@ -26,6 +27,7 @@ export function describeEvent(e: BattleEvent, s: BattleState): string {
     case "fizzle":
       return `${possessive(e.who)} ${e.spell} fizzled — it needs ${e.min}–${e.max} ${e.resource}, you gave it ${e.fuel}.`;
     case "cast":
+      if (e.spell === "taunt") return e.who === "player" ? `You taunt ${s.enemy.name}!` : `${s.enemy.name} taunts you!`;
       if (e.fuel !== undefined) return `${name(e.who)} ${e.resource === "energy" ? "use" : "cast"} ${e.spell} with ${e.fuel} ${unit(e.resource ?? "mana")}!`;
       return `${name(e.who)} ${e.who === "player" ? "use" : "uses"} ${e.spell}!`;
     case "blocked":
@@ -63,8 +65,12 @@ export function describeEvent(e: BattleEvent, s: BattleState): string {
       return `console.log: ${e.text}`;
     case "fled":
       return "You got away safely.";
+    case "resolveLost":
+      return e.who === "enemy" ? `${s.enemy.name}'s will to fight drops by ${e.amount}.` : `Your resolve drops by ${e.amount}.`;
     case "won":
-      return `${s.enemy.name} gives up and oozes away.`;
+      return ENEMIES[s.enemyId]?.knockoutText ?? `${s.enemy.name} is defeated.`;
+    case "gaveUp":
+      return ENEMIES[s.enemyId]?.giveUpText ?? `${s.enemy.name} gives up.`;
     case "lost":
       return "You collapse…";
   }

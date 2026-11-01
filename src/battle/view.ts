@@ -10,6 +10,7 @@ export interface BattleView {
   temperature: number;
   playerStatuses: StatusName[];
   enemyStatuses: StatusName[];
+  enemyResolve: number;
 }
 
 export function viewOf(s: BattleState): BattleView {
@@ -22,6 +23,7 @@ export function viewOf(s: BattleState): BattleView {
     temperature: s.world.temperature,
     playerStatuses: Object.keys(s.player.statuses) as StatusName[],
     enemyStatuses: Object.keys(s.enemy.statuses) as StatusName[],
+    enemyResolve: s.enemy.resolve,
   };
 }
 
@@ -46,6 +48,8 @@ export function stepView(v: BattleView, e: BattleEvent): BattleView {
     case "restored":
       if (e.who !== "player") return v;
       return e.resource === "mana" ? { ...v, playerMana: v.playerMana + e.amount } : { ...v, playerEnergy: v.playerEnergy + e.amount };
+    case "resolveLost":
+      return e.who === "enemy" ? { ...v, enemyResolve: Math.max(0, v.enemyResolve - e.amount) } : v;
     case "statusApplied": {
       const key = e.who === "player" ? "playerStatuses" : "enemyStatuses";
       return v[key].includes(e.status) ? v : { ...v, [key]: [...v[key], e.status] };

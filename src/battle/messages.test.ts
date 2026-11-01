@@ -30,6 +30,9 @@ const ALL: BattleEvent[] = [
   { type: "regen", who: "player", amount: 2, resource: "mana" },
   { type: "regen", who: "player", amount: 2, resource: "energy" },
   { type: "log", who: "player", text: "true" },
+  { type: "resolveLost", who: "enemy", amount: 15 },
+  { type: "gaveUp" },
+  { type: "cast", who: "player", spell: "taunt" },
   { type: "statusApplied", who: "enemy", status: "chilled", turns: 2 },
   { type: "statusApplied", who: "player", status: "chilled", turns: 2 },
   { type: "statusApplied", who: "enemy", status: "scared", turns: 2 },
@@ -87,6 +90,12 @@ describe("describeEvent", () => {
   });
 
   test("won copy", () => {
-    expect(describeEvent({ type: "won" }, s)).toBe("Bugblob gives up and oozes away.");
+    expect(describeEvent({ type: "won" }, s)).toBe("Bugblob collapses into a puddle.");
+  });
+
+  test("give-up and taunt copy", () => {
+    expect(describeEvent({ type: "gaveUp" }, s)).toBe("Bugblob gives up and oozes away.");
+    expect(describeEvent({ type: "cast", who: "player", spell: "taunt" }, s)).toBe("You taunt Bugblob!");
+    expect(describeEvent({ type: "resolveLost", who: "enemy", amount: 15 }, s)).toBe("Bugblob's will to fight drops by 15.");
   });
 });

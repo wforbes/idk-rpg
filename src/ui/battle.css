@@ -104,6 +104,16 @@
   background: #e0a43d;
 }
 
+/* Will to fight: a thin bar under the enemy's HP. */
+.bar.will {
+  height: 0.35em;
+  border-width: 0.1em;
+}
+
+.bar.will > i {
+  background: #b06ad6;
+}
+
 .battle-text {
   flex: 1;
   position: relative;

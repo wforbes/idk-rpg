@@ -9,7 +9,7 @@ describe("battle view", () => {
   test("viewOf copies the displayed numbers", () => {
     expect(viewOf(s)).toEqual({
       playerHp: 30, playerMana: 10, playerEnergy: 12, enemyHp: 24, enemyShielded: false, temperature: 24,
-      playerStatuses: [], enemyStatuses: [],
+      playerStatuses: [], enemyStatuses: [], enemyResolve: 50,
     });
   });
 
@@ -44,6 +44,11 @@ describe("battle view", () => {
     v = stepView(v, { type: "statusEnded", who: "enemy", status: "chilled" });
     expect(v.enemyStatuses).toEqual([]);
     expect(stepView(v, { type: "statusApplied", who: "player", status: "chilled", turns: 2 }).playerStatuses).toEqual(["chilled"]);
+  });
+
+  test("resolve loss lowers the shown will, never below 0", () => {
+    expect(stepView(viewOf(s), { type: "resolveLost", who: "enemy", amount: 15 }).enemyResolve).toBe(35);
+    expect(stepView(viewOf(s), { type: "resolveLost", who: "enemy", amount: 99 }).enemyResolve).toBe(0);
   });
 
   test("damage lowers the target's shown HP, never below 0", () => {

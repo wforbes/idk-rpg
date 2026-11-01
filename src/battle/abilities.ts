@@ -1,4 +1,4 @@
-import { applyStatus, CHILL_TURNS } from "./statuses";
+import { applyStatus, CHILL_TURNS, SCARED_TURNS } from "./statuses";
 import type { BattleEvent, BattleState, Resource, Side } from "./types";
 
 export interface Ability {
@@ -20,13 +20,25 @@ export const EMBER_HOT_BONUS = 2;
 export const EMBER_MELT_FUEL = 5;
 export const SLIME_SLAP_DAMAGE = 5;
 export const ENERGY_REGEN = 2;
+export const TAUNT_RESOLVE = 15;
+export const SCARED_MULTIPLIER = 2;
 
 export const opponent = (side: Side): Side => (side === "player" ? "enemy" : "player");
 
-function dealDamage(draft: BattleState, user: Side, amount: number): BattleEvent {
+/** Lowers a fighter's will to fight (doubled while scared). No-op for fighters without resolve. */
+export function loseResolve(draft: BattleState, target: Side, base: number): BattleEvent[] {
+  const f = draft[target];
+  if (f.maxResolve <= 0 || base <= 0) return [];
+  const amount = Math.min(f.resolve, base * (f.statuses.scared ? SCARED_MULTIPLIER : 1));
+  f.resolve -= amount;
+  return [{ type: "resolveLost", who: target, amount }];
+}
+
+/** Damage also shakes the target's resolve by half the damage, rounded up. */
+function dealDamage(draft: BattleState, user: Side, amount: number): BattleEvent[] {
   const target = opponent(user);
   draft[target].hp = Math.max(0, draft[target].hp - amount);
-  return { type: "damage", who: user, target, amount };
+  return [{ type: "damage", who: user, target, amount }, ...loseResolve(draft, target, Math.ceil(amount / 2))];
 }
 
 /** The fuel window an ability has for this user, after modifications. */
@@ -51,7 +63,7 @@ export const ABILITIES: Record<string, Ability> = {
         events.push({ type: "shieldMelted", who: user });
       }
       const bonus = draft.world.temperature > EMBER_HOT_THRESHOLD ? EMBER_HOT_BONUS : 0;
-      events.push(dealDamage(draft, user, fuel * 2 + bonus));
+      events.push(...dealDamage(draft, user, fuel * 2 + bonus));
       return events;
     },
   },
@@ -65,7 +77,7 @@ export const ABILITIES: Record<string, Ability> = {
       const target = draft[opponent(user)];
       if (target.shielded) return [{ type: "blocked", who: user, spell: "jab" }];
       if (target.dodging) return [{ type: "missed", who: user, spell: "jab" }];
-      return [dealDamage(draft, user, fuel * 2)];
+      return dealDamage(draft, user, fuel * 2);
     },
   },
   frostbite: {
@@ -77,7 +89,17 @@ export const ABILITIES: Record<string, Ability> = {
     apply(draft, user, fuel = 0) {
       const target = opponent(user);
       const damage = draft[target].traits.frostHalf ? Math.floor(fuel / 2) : fuel;
-      return [dealDamage(draft, user, damage), ...applyStatus(draft, target, "chilled", CHILL_TURNS)];
+      return [...dealDamage(draft, user, damage), ...applyStatus(draft, target, "chilled", CHILL_TURNS)];
+    },
+  },
+  taunt: {
+    id: "taunt",
+    kind: "other",
+    signature: "taunt()",
+    notes: `−${TAUNT_RESOLVE} will to fight (×2 if scared) · scares for ${SCARED_TURNS} turns`,
+    apply(draft, user) {
+      const target = opponent(user);
+      return [...loseResolve(draft, target, TAUNT_RESOLVE), ...applyStatus(draft, target, "scared", SCARED_TURNS)];
     },
   },
   frostGather: {
@@ -96,7 +118,7 @@ export const ABILITIES: Record<string, Ability> = {
     signature: "slimeSlap()",
     notes: `${SLIME_SLAP_DAMAGE} damage`,
     apply(draft, user) {
-      return [dealDamage(draft, user, SLIME_SLAP_DAMAGE)];
+      return dealDamage(draft, user, SLIME_SLAP_DAMAGE);
     },
   },
 };
