@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, test } from "vitest";
 import { getSandbox } from "./sandbox";
-import type { RunCode, Snapshot } from "./types";
+import type { RunCode, RunOptions, Snapshot } from "./types";
 
 const snapshot: Snapshot = { self: { mana: 7 }, world: { temperature: 31 }, enemy: { hp: 24, shielded: false } };
-const opts = { actions: ["ember"], rolls: [] as number[] };
+const opts: RunOptions = { actions: ["ember"], rolls: [] };
 
 let run: RunCode;
 beforeAll(async () => {
@@ -72,6 +72,21 @@ describe("sandbox", () => {
   test("non-number fuel is passed through for the engine to judge", () => {
     expect(ok('ember("5")').intents).toEqual([{ spell: "ember", fuel: "5" }]);
     expect(ok("ember()").intents).toEqual([{ spell: "ember" }]);
+  });
+
+  test("spaceHeater.use() records an item intent", () => {
+    const r = ok("spaceHeater.use(); ember(4);", { actions: ["ember"], rolls: [], items: ["spaceHeater"] });
+    expect(r.intents).toEqual([{ item: "spaceHeater" }, { spell: "ember", fuel: 4 }]);
+  });
+
+  test("items you don't own are not defined", () => {
+    expect(fail("manaBerry.use()").error).toMatch(/ReferenceError.*manaBerry/);
+  });
+
+  test("item objects are read-only", () => {
+    const o = { actions: ["ember"], rolls: [], items: ["spaceHeater"] };
+    expect(run("spaceHeater.use = () => {}", snapshot, o).ok).toBe(false);
+    expect(run("spaceHeater = 1", snapshot, o).ok).toBe(false);
   });
 
   test("no host access", () => {

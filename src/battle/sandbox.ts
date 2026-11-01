@@ -85,7 +85,8 @@ function formatError(err: unknown): string {
  * the action functions that record intents, chance(), and console.log. Returns {intents, logs}.
  */
 function buildPrelude(snapshot: Snapshot, opts: RunOptions): string {
-  for (const name of opts.actions) {
+  const items = [...new Set(opts.items ?? [])];
+  for (const name of [...opts.actions, ...items]) {
     if (!IDENTIFIER.test(name)) throw new Error(`bad action name: ${name}`);
   }
   return `(() => {
@@ -93,6 +94,7 @@ function buildPrelude(snapshot: Snapshot, opts: RunOptions): string {
   const snap = ${JSON.stringify(snapshot)};
   const rolls = ${JSON.stringify(opts.rolls)};
   const actions = ${JSON.stringify(opts.actions)};
+  const items = ${JSON.stringify(items)};
   const intents = [];
   const logs = [];
 
@@ -122,6 +124,11 @@ function buildPrelude(snapshot: Snapshot, opts: RunOptions): string {
       if (arguments.length > 0) intent.fuel = plain(fuel);
       intents.push(intent);
     });
+  }
+
+  // Owned items are read-only objects: spaceHeater.use() records { item: "spaceHeater" }.
+  for (const name of items) {
+    define(name, Object.freeze({ use: () => { intents.push({ item: name }); } }));
   }
 
   define("chance", (p) => (rolls.length ? rolls.shift() : 0.5) < p);

@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, test } from "vitest";
 import { createGameState } from "../state/gameState";
 import { ENEMIES } from "./enemies";
-import { createBattle, precheck, resolveTurn, snapshotFor, TEMP_MAX, TEMP_MIN, type TurnDeps } from "./engine";
+import { createBattle, precheck, resolveTurn, snapshotFor, TEMP_MAX, TEMP_MIN, useItemNow, type TurnDeps } from "./engine";
 import { getSandbox } from "./sandbox";
 import type { BattleEvent, BattleState, RunCode } from "./types";
 
@@ -186,6 +186,64 @@ describe("resolveTurn", () => {
       s = resolveTurn(s, cast("ember(enemy.shielded ? 5 : 3)"), { runCode, rng }).state;
     }
     expect(s.outcome).toBe("won");
+  });
+});
+
+describe("items in battle", () => {
+  const withItems = (items: string[]) => createBattle("bugblob", createGameState().player, { items });
+
+  test("spaceHeater + ember in one turn gets the hot bonus", () => {
+    const { state, events } = resolveTurn(withItems(["spaceHeater"]), cast("spaceHeater.use(); ember(3);"), deps(SLAP));
+    expect(events).toContainEqual({ type: "itemUsed", who: "player", item: "spaceHeater" });
+    expect(state.enemy.hp).toBe(24 - (6 + 2));
+  });
+
+  test("a second item in the same turn is rejected", () => {
+    const { state, events } = resolveTurn(withItems(["manaBerry", "manaBerry"]), cast("manaBerry.use(); manaBerry.use(); ember(3);"), deps(SLAP));
+    expect(events).toContainEqual({ type: "itemRejected", who: "player", item: "manaBerry", reason: "extraItem" });
+    expect(state.items).toEqual(["manaBerry"]);
+  });
+
+  test("Item menu use then an item in code is rejected", () => {
+    const after = useItemNow(withItems(["manaBerry", "energyBar"]), "manaBerry").state;
+    const { events } = resolveTurn(after, cast("energyBar.use(); ember(3);"), deps(SLAP));
+    expect(events).toContainEqual({ type: "itemRejected", who: "player", item: "energyBar", reason: "extraItem" });
+    expect(events.some((e) => e.type === "damage" && e.target === "enemy")).toBe(true);
+  });
+
+  test("the item limit resets next turn", () => {
+    const one = resolveTurn(withItems(["manaBerry", "manaBerry"]), cast("manaBerry.use(); ember(3);"), deps(SLAP)).state;
+    expect(one.itemUsedThisTurn).toBe(false);
+    const two = resolveTurn(one, cast("manaBerry.use(); ember(3);"), deps(SLAP));
+    expect(two.events).toContainEqual({ type: "itemUsed", who: "player", item: "manaBerry" });
+  });
+
+  test("consumables leave state.items and are recorded as consumed; the heater stays", () => {
+    let s = withItems(["spaceHeater", "manaBerry"]);
+    s = resolveTurn(s, cast("manaBerry.use(); ember(3);"), deps(SLAP)).state;
+    s = resolveTurn(s, cast("spaceHeater.use(); ember(3);"), deps(SLAP)).state;
+    expect(s.items).toEqual(["spaceHeater"]);
+    expect(s.consumed).toEqual(["manaBerry"]);
+  });
+
+  test("useItemNow does not end the turn", () => {
+    const before = withItems(["manaBerry"]);
+    before.player.mana = 2;
+    const { state, events } = useItemNow(before, "manaBerry");
+    expect(state.turn).toBe(1);
+    expect(state.player.mana).toBe(6);
+    expect(state.itemUsedThisTurn).toBe(true);
+    expect(events.every((e) => !("who" in e) || e.who === "player")).toBe(true);
+    expect(before.player.mana).toBe(2);
+  });
+
+  test("an item-only turn is allowed by precheck", () => {
+    expect(precheck(withItems(["manaBerry"]), "manaBerry.use();", runCode).ok).toBe(true);
+  });
+
+  test("precheck rejects two items", () => {
+    const r = precheck(withItems(["manaBerry", "energyBar"]), "manaBerry.use(); energyBar.use(); ember(3);", runCode);
+    expect(r).toMatchObject({ ok: false, message: "Only one item per turn." });
   });
 });
 

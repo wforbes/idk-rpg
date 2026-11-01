@@ -16,6 +16,9 @@ const battle = (opts: { player?: Partial<Fighter>; enemy?: Partial<Fighter>; tem
   outcome: "ongoing",
   knownAbilities: ["ember", "jab"],
   mods: [],
+  items: [],
+  itemUsedThisTurn: false,
+  consumed: [],
 });
 
 const ember = (fuel?: unknown): Intent => (fuel === undefined ? { spell: "ember" } : { spell: "ember", fuel });

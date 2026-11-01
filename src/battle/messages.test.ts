@@ -30,6 +30,11 @@ const ALL: BattleEvent[] = [
   { type: "regen", who: "player", amount: 2, resource: "mana" },
   { type: "regen", who: "player", amount: 2, resource: "energy" },
   { type: "log", who: "player", text: "true" },
+  { type: "itemUsed", who: "player", item: "spaceHeater" },
+  { type: "itemRejected", who: "player", item: "manaBerry", reason: "extraItem" },
+  { type: "itemRejected", who: "player", item: "manaBerry", reason: "notOwned" },
+  { type: "temperatureRaised", temperature: 28 },
+  { type: "restored", who: "player", resource: "mana", amount: 4 },
   { type: "fled" },
   { type: "won" },
   { type: "lost" },
@@ -59,6 +64,11 @@ describe("describeEvent", () => {
       "Your jab fizzled — it needs 2–4 energy, you gave it 5.",
     );
     expect(describeEvent({ type: "regen", who: "player", amount: 2, resource: "energy" }, s)).toBe("You recover 2 EN.");
+  });
+
+  test("item copy", () => {
+    expect(describeEvent({ type: "itemUsed", who: "player", item: "spaceHeater" }, s)).toBe("You use the Space Heater!");
+    expect(describeEvent({ type: "temperatureRaised", temperature: 28 }, s)).toBe("The air warms up. It's 28° now.");
   });
 
   test("log copy", () => {

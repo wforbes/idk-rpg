@@ -1,10 +1,13 @@
 import Phaser from "phaser";
 import { ENEMIES } from "../battle/enemies";
-import { createBattle, resolveTurn, type PlayerAction } from "../battle/engine";
+import { createBattle, resolveTurn, useItemNow, type PlayerAction } from "../battle/engine";
+import { BATTLE_ITEMS } from "../battle/items";
 import { describeEvent } from "../battle/messages";
 import { getSandbox } from "../battle/sandbox";
 import type { BattleEvent, BattleState, RunCode } from "../battle/types";
 import { stepView, viewOf } from "../battle/view";
+import { ITEMS } from "../data/items";
+import { applyBattleResults } from "../state/battleResults";
 import { endBattle, gameState, type Respawn } from "../state/gameState";
 import { BattleHud, type MenuChoice } from "../ui/battleHud";
 import { openCastingOverlay, type SpellbookTab } from "../ui/castingOverlay";
@@ -36,7 +39,10 @@ export class BattleScene extends Phaser.Scene {
     // Typing in DOM panels (the code editor) must never be swallowed by Phaser's key capture.
     this.input.keyboard?.disableGlobalCapture();
 
-    this.state = createBattle(this.data_.enemyId, gameState.player, { knownAbilities: gameState.knownAbilities });
+    this.state = createBattle(this.data_.enemyId, gameState.player, {
+      knownAbilities: gameState.knownAbilities,
+      items: gameState.inventory.filter((id) => id in BATTLE_ITEMS),
+    });
     this.drawScene();
     this.hud = new BattleHud(
       { enemy: this.state.enemy.name, level: this.state.enemy.level },
@@ -66,14 +72,49 @@ export class BattleScene extends Phaser.Scene {
 
   /** Menu options that do something right now. */
   protected enabledMenu(): Set<MenuChoice> {
-    return new Set<MenuChoice>(["attack", "spell", "run"]);
+    const enabled = new Set<MenuChoice>(["attack", "spell", "run"]);
+    if (this.state.items.length) enabled.add("item");
+    return enabled;
   }
 
   private async onPick(choice: MenuChoice): Promise<void> {
     if (choice === "attack") return this.openSpell("moves");
     if (choice === "spell") return this.openSpell("spells");
     if (choice === "run") return this.resolve({ kind: "run" });
+    if (choice === "item" && this.state.items.length) return this.openItems();
     await this.hud.showMessages(["You haven't learned that yet."]);
+    this.playerTurn();
+  }
+
+  /** The Item menu: using an item doesn't end the turn, but it is the turn's one item. */
+  private openItems(): void {
+    const counts = new Map<string, number>();
+    for (const id of this.state.items) counts.set(id, (counts.get(id) ?? 0) + 1);
+    const options = [...counts].map(([id, n]) => ({
+      id,
+      label: `${ITEMS[id]?.name ?? id}${BATTLE_ITEMS[id].consumable ? ` ×${n}` : ""}`,
+    }));
+    this.hud.showList("Use which item?", options, (id) => void this.useItem(id));
+  }
+
+  private async useItem(id: string | null): Promise<void> {
+    if (!id) return this.playerTurn();
+    if (this.state.itemUsedThisTurn) {
+      await this.hud.showMessages(["You've already used an item this turn."]);
+      return this.playerTurn();
+    }
+    const before = this.state;
+    const { state, events } = useItemNow(before, id);
+    let view = viewOf(before);
+    await this.hud.showMessages(
+      events.map((e) => describeEvent(e, state)),
+      (i) => {
+        view = stepView(view, events[i]);
+        this.hud.update(view);
+      },
+    );
+    this.state = state;
+    this.hud.update(viewOf(state));
     this.playerTurn();
   }
 
@@ -123,6 +164,8 @@ export class BattleScene extends Phaser.Scene {
 
     if (state.outcome === "ongoing") return this.playerTurn();
     if (state.outcome === "lost") await this.hud.showMessages(["You blacked out…"]);
+    const notes = applyBattleResults(gameState, state, state.outcome);
+    if (notes.length) await this.hud.showMessages(notes);
     const destination = endBattle(gameState, state.outcome, this.data_.enemyEntityId, this.data_.returnTo);
     this.cameras.main.fadeOut(250);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start(SCENES.overworld, destination));

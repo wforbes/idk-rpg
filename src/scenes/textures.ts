@@ -24,6 +24,28 @@ export function generateTextures(scene: Phaser.Scene): void {
   g.fillStyle(0xd0d0d0).fillRect(4, 5, 8, 8);
   g.fillStyle(0xff7a2f).fillRect(5, 7, 6, 1).fillRect(5, 9, 6, 1).fillRect(5, 11, 6, 1);
   g.fillStyle(0x333333).fillRect(4, 14, 2, 1).fillRect(10, 14, 2, 1);
+  g.generateTexture("item-spaceHeater", 16, 16);
+  g.clear();
+
+  // Mana Berry: a round purple berry with a leaf.
+  g.fillStyle(0x2a1440).fillCircle(8, 10, 5);
+  g.fillStyle(0x7d4ad6).fillCircle(8, 10, 4);
+  g.fillStyle(0xc8b4ff).fillRect(6, 8, 2, 2);
+  g.fillStyle(0x3f8a3a).fillRect(8, 3, 3, 2).fillRect(8, 4, 1, 2);
+  g.generateTexture("item-manaBerry", 16, 16);
+  g.clear();
+
+  // Energy Bar: an orange wrapper.
+  g.fillStyle(0x5a2e0e).fillRect(2, 6, 12, 6);
+  g.fillStyle(0xe0a43d).fillRect(3, 7, 10, 4);
+  g.fillStyle(0xfff1c2).fillRect(6, 8, 4, 2);
+  g.generateTexture("item-energyBar", 16, 16);
+  g.clear();
+
+  // Generic item fallback: a small crate.
+  g.fillStyle(0x5a3a20).fillRect(3, 5, 10, 9);
+  g.fillStyle(0xa8743f).fillRect(4, 6, 8, 7);
+  g.fillStyle(0x5a3a20).fillRect(4, 9, 8, 1);
   g.generateTexture("item", 16, 16);
   g.clear();
 

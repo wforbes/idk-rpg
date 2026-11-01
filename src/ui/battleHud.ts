@@ -113,6 +113,43 @@ export class BattleHud {
     };
   }
 
+  /** A pick-one list in the menu corner (e.g. the Item menu). Esc or "Back" picks null. */
+  showList(prompt: string, options: { id: string; label: string }[], onPick: (id: string | null) => void): void {
+    const entries = [...options, { id: "", label: "Back" }];
+    let selected = 0;
+    this.root.classList.remove("hidden");
+    this.text.textContent = prompt;
+    this.text.classList.remove("more");
+    this.menu.hidden = false;
+
+    const pick = (i: number) => {
+      this.onKey = null;
+      this.menu.hidden = true;
+      onPick(entries[i].id || null);
+    };
+    const render = () =>
+      this.menu.replaceChildren(
+        ...entries.map((o, i) => {
+          const li = el("li", i === selected ? "selected" : "", o.label);
+          li.addEventListener("click", () => this.onKey && pick(i));
+          return li;
+        }),
+      );
+    render();
+
+    this.onKey = (e) => {
+      const moves: Record<string, number> = { ArrowUp: -1, ArrowDown: 1, ArrowLeft: -1, ArrowRight: 1, w: -1, s: 1, a: -1, d: 1 };
+      if (moves[e.key] !== undefined) {
+        selected = (selected + moves[e.key] + entries.length) % entries.length;
+        render();
+      } else if (e.key === "Escape") {
+        pick(entries.length - 1);
+      } else if (ADVANCE_KEYS.has(e.key) && !e.repeat) {
+        pick(selected);
+      }
+    };
+  }
+
   /** Hide everything (e.g. while the casting overlay is open). */
   setHidden(hidden: boolean): void {
     this.root.classList.toggle("hidden", hidden);

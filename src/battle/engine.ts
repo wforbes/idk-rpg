@@ -11,15 +11,16 @@ export interface TurnDeps {
   rng: () => number;
 }
 
-export const START_TEMPERATURE = 24;
-export const TEMP_MIN = 18;
-export const TEMP_MAX = 32;
+export { START_TEMPERATURE, TEMP_MAX, TEMP_MIN } from "./constants";
+import { START_TEMPERATURE, TEMP_MAX, TEMP_MIN } from "./constants";
 export const MANA_REGEN = 2;
 
 /** What the player brings into a fight beyond raw stats. */
 export interface BattleOptions {
   knownAbilities?: string[];
   mods?: string[];
+  /** Battle-usable items the player carries (consumables once per copy). */
+  items?: string[];
 }
 
 export const DEFAULT_ABILITIES = ["ember", "jab"];
@@ -39,6 +40,9 @@ export function createBattle(enemyId: string, player: PlayerStats, opts: BattleO
     outcome: "ongoing",
     knownAbilities: [...(opts.knownAbilities ?? DEFAULT_ABILITIES)],
     mods: [...(opts.mods ?? [])],
+    items: [...(opts.items ?? [])],
+    itemUsedThisTurn: false,
+    consumed: [],
   };
 }
 
@@ -68,7 +72,7 @@ export function snapshotFor(s: BattleState, side: Side): Snapshot {
 export type PrecheckResult = { ok: true; logs: string[] } | { ok: false; message: string; logs: string[] };
 
 export function precheck(s: BattleState, code: string, runCode: RunCode): PrecheckResult {
-  const result = runCode(code, snapshotFor(s, "player"), { actions: s.knownAbilities, rolls: [] });
+  const result = runCode(code, snapshotFor(s, "player"), { actions: s.knownAbilities, rolls: [], items: s.items });
   const { logs } = result;
   const fail = (message: string): PrecheckResult => ({ ok: false, message, logs });
   if (!result.ok) return fail(result.error);
@@ -81,6 +85,8 @@ export function precheck(s: BattleState, code: string, runCode: RunCode): Preche
       return fail(`${e.spell} needs a whole number of ${resource}, like ${e.spell}(4).`);
     }
     if (e.type === "rejected") return fail(`You don't know a spell called ${e.spell} yet.`);
+    if (e.type === "itemRejected" && e.reason === "extraItem") return fail("Only one item per turn.");
+    if (e.type === "itemRejected") return fail(`You don't have a ${e.item}.`);
     if (e.type === "notEnoughFuel") {
       const unit = e.resource === "mana" ? "MP" : "EN";
       return fail(`Not enough ${e.resource}: ${e.spell}(${e.fuel}) needs ${e.fuel} ${unit} and you have ${e.have}.`);
@@ -126,6 +132,14 @@ export function resolveTurn(s: BattleState, action: PlayerAction, deps: TurnDeps
     }
     draft.turn++;
   }
+  draft.itemUsedThisTurn = false;
+  return { state: draft, events };
+}
+
+/** The Item menu: use one item right now. It doesn't end the turn, but it is the turn's one item. */
+export function useItemNow(s: BattleState, itemId: string): { state: BattleState; events: BattleEvent[] } {
+  const draft = structuredClone(s);
+  const events = applyIntents(draft, "player", [], [{ item: itemId }]);
   return { state: draft, events };
 }
 
@@ -134,7 +148,8 @@ function act(draft: BattleState, side: Side, playerCode: string, deps: TurnDeps)
   const isPlayer = side === "player";
   const actions = isPlayer ? draft.knownAbilities : def.abilities;
   const rolls = isPlayer ? [] : [deps.rng(), deps.rng(), deps.rng()];
-  const result = deps.runCode(isPlayer ? playerCode : def.script, snapshotFor(draft, side), { actions, rolls });
+  const items = isPlayer ? draft.items : [];
+  const result = deps.runCode(isPlayer ? playerCode : def.script, snapshotFor(draft, side), { actions, rolls, items });
   const logs: BattleEvent[] = isPlayer ? result.logs.map((text) => ({ type: "log", who: side, text })) : [];
   if (!result.ok) return [...logs, { type: "codeError", who: side, message: result.error }];
   if (!result.intents.length) return [...logs, { type: "noAction", who: side }];

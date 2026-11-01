@@ -1,4 +1,5 @@
 import { ABILITIES, fuelWindow } from "./abilities";
+import { BATTLE_ITEMS } from "./items";
 import type { BattleEvent, BattleState, Intent, Side } from "./types";
 
 /**
@@ -12,7 +13,10 @@ export function applyIntents(draft: BattleState, user: Side, allowed: string[], 
 
   for (const intent of intents) {
     if (draft.outcome !== "ongoing") break;
-    if (!("spell" in intent)) continue; // items: Task 3
+    if ("item" in intent) {
+      events.push(...useItem(draft, user, intent.item));
+      continue;
+    }
     const { spell, fuel } = intent;
     const ability = allowed.includes(spell) ? ABILITIES[spell] : undefined;
     if (!ability) {
@@ -63,4 +67,18 @@ export function applyIntents(draft: BattleState, user: Side, allowed: string[], 
     }
   }
   return events;
+}
+
+/** One item per turn, only items the player owns; consumables are used up. Mutates `draft`. */
+function useItem(draft: BattleState, user: Side, item: string): BattleEvent[] {
+  const def = BATTLE_ITEMS[item];
+  const owned = user === "player" && def !== undefined && draft.items.includes(item);
+  if (!owned) return [{ type: "itemRejected", who: user, item, reason: "notOwned" }];
+  if (draft.itemUsedThisTurn) return [{ type: "itemRejected", who: user, item, reason: "extraItem" }];
+  draft.itemUsedThisTurn = true;
+  if (def.consumable) {
+    draft.items.splice(draft.items.indexOf(item), 1);
+    draft.consumed.push(item);
+  }
+  return [{ type: "itemUsed", who: user, item }, ...def.apply(draft, user)];
 }

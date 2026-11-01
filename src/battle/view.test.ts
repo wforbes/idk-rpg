@@ -25,6 +25,14 @@ describe("battle view", () => {
     expect(v.playerEnergy).toBe(7);
   });
 
+  test("item effects show up in the view", () => {
+    let v = stepView({ ...viewOf(s), playerMana: 2 }, { type: "restored", who: "player", resource: "mana", amount: 4 });
+    expect(v.playerMana).toBe(6);
+    v = stepView(v, { type: "restored", who: "player", resource: "energy", amount: 1 });
+    expect(v.playerEnergy).toBe(13);
+    expect(stepView(v, { type: "temperatureRaised", temperature: 28 }).temperature).toBe(28);
+  });
+
   test("damage lowers the target's shown HP, never below 0", () => {
     expect(stepView(viewOf(s), { type: "damage", who: "player", target: "enemy", amount: 8 }).enemyHp).toBe(16);
     expect(stepView(viewOf(s), { type: "damage", who: "enemy", target: "player", amount: 99 }).playerHp).toBe(0);

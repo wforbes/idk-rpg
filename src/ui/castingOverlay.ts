@@ -5,13 +5,15 @@ import { oneDark } from "@codemirror/theme-one-dark";
 import { basicSetup, EditorView } from "codemirror";
 import { ABILITIES, fuelWindow } from "../battle/abilities";
 import { ENEMIES } from "../battle/enemies";
+import { BATTLE_ITEMS } from "../battle/items";
+import { ITEMS } from "../data/items";
 import { precheck, snapshotFor } from "../battle/engine";
 import type { BattleState, RunCode } from "../battle/types";
 import { awarenessRows, type AwarenessTab } from "./awareness";
 import { el, uiRoot } from "./dom";
 import "./castingOverlay.css";
 
-export type SpellbookTab = "moves" | "spells";
+export type SpellbookTab = "moves" | "spells" | "items";
 
 export interface CastingOverlayOptions {
   state: BattleState;
@@ -45,8 +47,8 @@ export function openCastingOverlay(opts: CastingOverlayOptions): { close(): void
   let bookTab: SpellbookTab = opts.tab;
   const renderBook = () => {
     bookTabs.replaceChildren(
-      ...(["moves", "spells"] as const).map((t) => {
-        const b = el("button", t === bookTab ? "on" : "", t === "moves" ? "Moves" : "Spells");
+      ...(["moves", "spells", "items"] as const).map((t) => {
+        const b = el("button", t === bookTab ? "on" : "", { moves: "Moves", spells: "Spells", items: "Items" }[t]);
         b.type = "button";
         b.addEventListener("click", () => {
           bookTab = t;
@@ -55,6 +57,22 @@ export function openCastingOverlay(opts: CastingOverlayOptions): { close(): void
         return b;
       }),
     );
+    if (bookTab === "items") {
+      const counts = new Map<string, number>();
+      for (const id of state.items) counts.set(id, (counts.get(id) ?? 0) + 1);
+      bookEntries.replaceChildren(
+        ...(counts.size
+          ? [...counts].map(([id, n]) => {
+              const entry = el("div", "spell");
+              entry.append(el("code", "", BATTLE_ITEMS[id].call));
+              const count = BATTLE_ITEMS[id].consumable ? ` ×${n}` : "";
+              entry.append(el("p", "", `${ITEMS[id]?.name ?? id}${count} · ${BATTLE_ITEMS[id].notes}`));
+              return entry;
+            })
+          : [el("p", "", "No battle items in your bag.")]),
+      );
+      return;
+    }
     const wanted = bookTab === "spells" ? ["spell"] : ["move", "other"];
     const ids = state.knownAbilities.filter((id) => ABILITIES[id] && wanted.includes(ABILITIES[id].kind));
     bookEntries.replaceChildren(

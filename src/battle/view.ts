@@ -37,7 +37,11 @@ export function stepView(v: BattleView, e: BattleEvent): BattleView {
     case "shieldMelted":
       return e.who === "player" ? { ...v, enemyShielded: false } : v;
     case "worldChanged":
+    case "temperatureRaised":
       return { ...v, temperature: e.temperature };
+    case "restored":
+      if (e.who !== "player") return v;
+      return e.resource === "mana" ? { ...v, playerMana: v.playerMana + e.amount } : { ...v, playerEnergy: v.playerEnergy + e.amount };
     default:
       return v;
   }

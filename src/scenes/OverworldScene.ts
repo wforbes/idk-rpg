@@ -163,7 +163,10 @@ export class OverworldScene extends Phaser.Scene {
         humanoid ? "down" : undefined,
       );
     }
-    for (const i of this.area.items) add({ kind: "item", id: i.id, x: i.x, y: i.y, itemId: i.itemId }, "item");
+    for (const i of this.area.items) {
+      const texture = this.textures.exists(`item-${i.itemId}`) ? `item-${i.itemId}` : "item";
+      add({ kind: "item", id: i.id, x: i.x, y: i.y, itemId: i.itemId }, texture);
+    }
     for (const e of this.area.enemies) add({ kind: "enemy", id: e.id, x: e.x, y: e.y, enemyId: e.enemyId }, `enemy-${e.enemyId}`);
   }
 

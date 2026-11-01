@@ -1,6 +1,8 @@
+import { ITEMS } from "../data/items";
 import type { BattleEvent, BattleState, Resource, Side } from "./types";
 
 const unit = (r: Resource) => (r === "mana" ? "MP" : "EN");
+const itemName = (id: string) => ITEMS[id]?.name ?? id;
 
 /** One line of battle narration per event. Short, a little playful, explicit about the rule. */
 export function describeEvent(e: BattleEvent, s: BattleState): string {
@@ -39,6 +41,16 @@ export function describeEvent(e: BattleEvent, s: BattleState): string {
       return e.target === "player" ? `You take ${e.amount} damage.` : `${s.enemy.name} takes ${e.amount} damage.`;
     case "regen":
       return `You recover ${e.amount} ${unit(e.resource)}.`;
+    case "itemUsed":
+      return `${name(e.who)} use the ${itemName(e.item)}!`;
+    case "itemRejected":
+      return e.reason === "extraItem"
+        ? `Only one item per turn — the ${itemName(e.item)} stays in your bag.`
+        : `You don't have a ${itemName(e.item)}.`;
+    case "temperatureRaised":
+      return `The air warms up. It's ${e.temperature}° now.`;
+    case "restored":
+      return `${name(e.who)} recover ${e.amount} ${unit(e.resource)}.`;
     case "log":
       return `console.log: ${e.text}`;
     case "fled":

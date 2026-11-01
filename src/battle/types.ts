@@ -22,6 +22,8 @@ export interface RunOptions {
   actions: string[];
   /** Pre-rolled random numbers consumed by chance(p). */
   rolls: number[];
+  /** Items the code may use; each becomes a read-only global with a use() method. */
+  items?: string[];
   /** Default 100. */
   timeoutMs?: number;
 }
@@ -58,6 +60,12 @@ export interface BattleState {
   knownAbilities: string[];
   /** The player's bought modifications (Task 6 fills these). */
   mods: string[];
+  /** The player's battle-usable items; a consumable appears once per copy. */
+  items: string[];
+  /** One item per turn, whether from the Item menu or from code. */
+  itemUsedThisTurn: boolean;
+  /** Consumables used up this battle, in order — removed from the bag afterwards. */
+  consumed: string[];
 }
 
 export type BattleEvent =
@@ -75,6 +83,10 @@ export type BattleEvent =
   | { type: "damage"; who: Side; target: Side; amount: number }
   | { type: "regen"; who: Side; amount: number; resource: Resource }
   | { type: "log"; who: Side; text: string }
+  | { type: "itemUsed"; who: Side; item: string }
+  | { type: "itemRejected"; who: Side; item: string; reason: "extraItem" | "notOwned" }
+  | { type: "temperatureRaised"; temperature: number }
+  | { type: "restored"; who: Side; resource: Resource; amount: number }
   | { type: "fled" }
   | { type: "won" }
   | { type: "lost" };

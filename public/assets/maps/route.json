@@ -11,7 +11,7 @@
  "version": "1.10",
  "tiledversion": "1.10.2",
  "nextlayerid": 4,
- "nextobjectid": 4,
+ "nextobjectid": 6,
  "layers": [
   {
    "id": 1,
@@ -730,6 +730,42 @@
        "name": "enemyId",
        "type": "string",
        "value": "bugblob"
+      }
+     ]
+    },
+    {
+     "id": 4,
+     "name": "manaBerry",
+     "type": "item",
+     "x": 80,
+     "y": 48,
+     "width": 16,
+     "height": 16,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "itemId",
+       "type": "string",
+       "value": "manaBerry"
+      }
+     ]
+    },
+    {
+     "id": 5,
+     "name": "energyBar",
+     "type": "item",
+     "x": 256,
+     "y": 176,
+     "width": 16,
+     "height": 16,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "itemId",
+       "type": "string",
+       "value": "energyBar"
       }
      ]
     }
