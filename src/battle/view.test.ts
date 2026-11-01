@@ -7,7 +7,10 @@ const s = createBattle("bugblob", createGameState().player);
 
 describe("battle view", () => {
   test("viewOf copies the displayed numbers", () => {
-    expect(viewOf(s)).toEqual({ playerHp: 30, playerMana: 10, playerEnergy: 12, enemyHp: 24, enemyShielded: false, temperature: 24 });
+    expect(viewOf(s)).toEqual({
+      playerHp: 30, playerMana: 10, playerEnergy: 12, enemyHp: 24, enemyShielded: false, temperature: 24,
+      playerStatuses: [], enemyStatuses: [],
+    });
   });
 
   test("a cast spends the shown mana", () => {
@@ -31,6 +34,16 @@ describe("battle view", () => {
     v = stepView(v, { type: "restored", who: "player", resource: "energy", amount: 1 });
     expect(v.playerEnergy).toBe(13);
     expect(stepView(v, { type: "temperatureRaised", temperature: 28 }).temperature).toBe(28);
+  });
+
+  test("statuses add and remove tags", () => {
+    let v = stepView(viewOf(s), { type: "statusApplied", who: "enemy", status: "chilled", turns: 2 });
+    expect(v.enemyStatuses).toEqual(["chilled"]);
+    v = stepView(v, { type: "statusApplied", who: "enemy", status: "chilled", turns: 2 });
+    expect(v.enemyStatuses).toEqual(["chilled"]);
+    v = stepView(v, { type: "statusEnded", who: "enemy", status: "chilled" });
+    expect(v.enemyStatuses).toEqual([]);
+    expect(stepView(v, { type: "statusApplied", who: "player", status: "chilled", turns: 2 }).playerStatuses).toEqual(["chilled"]);
   });
 
   test("damage lowers the target's shown HP, never below 0", () => {

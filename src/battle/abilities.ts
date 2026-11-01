@@ -1,3 +1,4 @@
+import { applyStatus, CHILL_TURNS } from "./statuses";
 import type { BattleEvent, BattleState, Resource, Side } from "./types";
 
 export interface Ability {
@@ -65,6 +66,18 @@ export const ABILITIES: Record<string, Ability> = {
       if (target.shielded) return [{ type: "blocked", who: user, spell: "jab" }];
       if (target.dodging) return [{ type: "missed", who: user, spell: "jab" }];
       return [dealDamage(draft, user, fuel * 2)];
+    },
+  },
+  frostbite: {
+    id: "frostbite",
+    kind: "spell",
+    signature: "frostbite(mana)",
+    notes: "damage = mana · chills: −2 speed for 2 turns",
+    fuel: { min: 2, max: 4, resource: "mana" },
+    apply(draft, user, fuel = 0) {
+      const target = opponent(user);
+      const damage = draft[target].traits.frostHalf ? Math.floor(fuel / 2) : fuel;
+      return [dealDamage(draft, user, damage), ...applyStatus(draft, target, "chilled", CHILL_TURNS)];
     },
   },
   frostGather: {

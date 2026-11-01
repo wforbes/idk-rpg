@@ -51,6 +51,14 @@ export function describeEvent(e: BattleEvent, s: BattleState): string {
       return `The air warms up. It's ${e.temperature}° now.`;
     case "restored":
       return `${name(e.who)} recover ${e.amount} ${unit(e.resource)}.`;
+    case "statusApplied":
+      if (e.status === "chilled") return e.who === "player" ? "You're chilled! You slow down." : `${s.enemy.name} is chilled! It slows down.`;
+      return e.who === "player" ? "You're scared!" : `${s.enemy.name} is scared! Its will to fight wobbles.`;
+    case "statusEnded":
+      if (e.status === "chilled") return e.who === "player" ? "You warm back up." : `${s.enemy.name} warms back up.`;
+      return e.who === "player" ? "You steady your nerves." : `${s.enemy.name} steadies its nerves.`;
+    case "immune":
+      return `${name(e.who)} ${e.who === "player" ? "shrug" : "shrugs"} off the ${e.status === "chilled" ? "chill" : "fear"}.`;
     case "log":
       return `console.log: ${e.text}`;
     case "fled":

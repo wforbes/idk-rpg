@@ -34,7 +34,7 @@ export function createGameState(): GameState {
     inventory: [],
     flags: new Set(),
     respawn: { mapKey: "town", x: 15, y: 12, facing: "down" },
-    knownAbilities: ["ember", "jab"],
+    knownAbilities: ["ember", "jab", "frostbite"],
   };
 }
 

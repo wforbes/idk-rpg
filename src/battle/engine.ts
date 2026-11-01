@@ -2,6 +2,7 @@ import type { PlayerStats } from "../state/gameState";
 import { applyIntents } from "./applyIntents";
 import { ABILITIES, ENERGY_REGEN } from "./abilities";
 import { ENEMIES } from "./enemies";
+import { effectiveSpeed, tickStatuses } from "./statuses";
 import type { BattleEvent, BattleState, RunCode, Side, Snapshot } from "./types";
 
 export type PlayerAction = { kind: "cast"; code: string } | { kind: "run" };
@@ -30,10 +31,11 @@ export function createBattle(enemyId: string, player: PlayerStats, opts: BattleO
   if (!def) throw new Error(`unknown enemy: ${enemyId}`);
   return {
     enemyId,
-    player: { name: "You", level: 1, ...player, shielded: false, dodging: false },
+    player: { name: "You", level: 1, ...player, shielded: false, dodging: false, statuses: {}, traits: {} },
     enemy: {
       name: def.name, level: def.level, hp: def.maxHp, maxHp: def.maxHp,
       mana: 0, maxMana: 0, energy: 0, maxEnergy: 0, speed: def.speed, shielded: false, dodging: false,
+      statuses: {}, traits: {},
     },
     world: { temperature: START_TEMPERATURE },
     turn: 1,
@@ -52,16 +54,25 @@ export function snapshotFor(s: BattleState, side: Side): Snapshot {
   if (side === "player") {
     const { player: p, enemy: e } = s;
     return {
-      self: { hp: p.hp, maxHp: p.maxHp, mana: p.mana, maxMana: p.maxMana, energy: p.energy, maxEnergy: p.maxEnergy, speed: p.speed },
+      self: {
+        hp: p.hp, maxHp: p.maxHp, mana: p.mana, maxMana: p.maxMana, energy: p.energy, maxEnergy: p.maxEnergy,
+        speed: effectiveSpeed(p), chilled: !!p.statuses.chilled,
+      },
       world,
-      enemy: { name: e.name, hp: e.hp, maxHp: e.maxHp, shielded: e.shielded, dodging: e.dodging, speed: e.speed },
+      enemy: {
+        name: e.name, hp: e.hp, maxHp: e.maxHp, shielded: e.shielded, dodging: e.dodging,
+        speed: effectiveSpeed(e), chilled: !!e.statuses.chilled, scared: !!e.statuses.scared,
+      },
     };
   }
   const { enemy: e, player: p } = s;
   return {
-    self: { name: e.name, hp: e.hp, maxHp: e.maxHp, shielded: e.shielded, dodging: e.dodging },
+    self: {
+      name: e.name, hp: e.hp, maxHp: e.maxHp, shielded: e.shielded, dodging: e.dodging,
+      chilled: !!e.statuses.chilled, scared: !!e.statuses.scared,
+    },
     world,
-    enemy: { hp: p.hp, maxHp: p.maxHp, mana: p.mana, energy: p.energy },
+    enemy: { hp: p.hp, maxHp: p.maxHp, mana: p.mana, energy: p.energy, chilled: !!p.statuses.chilled, speed: effectiveSpeed(p) },
   };
 }
 
@@ -112,7 +123,7 @@ export function resolveTurn(s: BattleState, action: PlayerAction, deps: TurnDeps
   draft.world.temperature = Math.min(TEMP_MAX, Math.max(TEMP_MIN, draft.world.temperature + drift));
   events.push({ type: "worldChanged", temperature: draft.world.temperature });
 
-  const order: Side[] = draft.player.speed >= draft.enemy.speed ? ["player", "enemy"] : ["enemy", "player"];
+  const order: Side[] = effectiveSpeed(draft.player) >= effectiveSpeed(draft.enemy) ? ["player", "enemy"] : ["enemy", "player"];
   for (const side of order) {
     if (draft.outcome !== "ongoing") break;
     events.push(...act(draft, side, action.code, deps));
@@ -130,6 +141,7 @@ export function resolveTurn(s: BattleState, action: PlayerAction, deps: TurnDeps
       p.energy += energy;
       events.push({ type: "regen", who: "player", amount: energy, resource: "energy" });
     }
+    events.push(...tickStatuses(draft));
     draft.turn++;
   }
   draft.itemUsedThisTurn = false;

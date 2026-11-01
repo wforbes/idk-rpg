@@ -28,6 +28,7 @@ export class BattleHud {
   private playerMpText = el("span");
   private playerMp = bar("mp");
   private playerEnText = el("span");
+  private playerTags = el("div", "battle-tags");
   private playerEn = bar("en");
   private text = el("div", "battle-text");
   private menu = el("ul", "battle-menu");
@@ -46,6 +47,7 @@ export class BattleHud {
       row("HP", this.playerHpText), this.playerHp.wrap,
       row("MP", this.playerMpText), this.playerMp.wrap,
       row("EN", this.playerEnText), this.playerEn.wrap,
+      this.playerTags,
     );
 
     const bottom = el("div", "panel battle-bottom");
@@ -58,7 +60,9 @@ export class BattleHud {
 
   update(v: BattleView): void {
     setBar(this.enemyHp, v.enemyHp, this.max.enemyHp);
-    this.enemyTags.replaceChildren(...(v.enemyShielded ? [el("span", "tag", "shielded")] : []));
+    const tags = (names: string[]) => names.map((t) => el("span", `tag tag-${t}`, t));
+    this.enemyTags.replaceChildren(...tags([...(v.enemyShielded ? ["shielded"] : []), ...v.enemyStatuses]));
+    this.playerTags.replaceChildren(...tags(v.playerStatuses));
     setBar(this.playerHp, v.playerHp, this.max.playerHp);
     this.playerHpText.textContent = `${v.playerHp}/${this.max.playerHp}`;
     setBar(this.playerMp, v.playerMana, this.max.playerMana);

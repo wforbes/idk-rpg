@@ -30,6 +30,12 @@ const ALL: BattleEvent[] = [
   { type: "regen", who: "player", amount: 2, resource: "mana" },
   { type: "regen", who: "player", amount: 2, resource: "energy" },
   { type: "log", who: "player", text: "true" },
+  { type: "statusApplied", who: "enemy", status: "chilled", turns: 2 },
+  { type: "statusApplied", who: "player", status: "chilled", turns: 2 },
+  { type: "statusApplied", who: "enemy", status: "scared", turns: 2 },
+  { type: "statusEnded", who: "enemy", status: "chilled" },
+  { type: "statusEnded", who: "player", status: "chilled" },
+  { type: "immune", who: "enemy", status: "chilled" },
   { type: "itemUsed", who: "player", item: "spaceHeater" },
   { type: "itemRejected", who: "player", item: "manaBerry", reason: "extraItem" },
   { type: "itemRejected", who: "player", item: "manaBerry", reason: "notOwned" },
@@ -69,6 +75,11 @@ describe("describeEvent", () => {
   test("item copy", () => {
     expect(describeEvent({ type: "itemUsed", who: "player", item: "spaceHeater" }, s)).toBe("You use the Space Heater!");
     expect(describeEvent({ type: "temperatureRaised", temperature: 28 }, s)).toBe("The air warms up. It's 28° now.");
+  });
+
+  test("status copy", () => {
+    expect(describeEvent({ type: "statusApplied", who: "enemy", status: "chilled", turns: 2 }, s)).toBe("Bugblob is chilled! It slows down.");
+    expect(describeEvent({ type: "statusEnded", who: "player", status: "chilled" }, s)).toBe("You warm back up.");
   });
 
   test("log copy", () => {

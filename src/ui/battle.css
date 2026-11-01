@@ -61,6 +61,20 @@
   background: #e2f0ff;
 }
 
+.tag + .tag {
+  margin-left: 0.4em;
+}
+
+.tag-scared {
+  border-color: #b5784a;
+  color: #8a4b1a;
+  background: #fff0e2;
+}
+
+.battle-player .battle-tags {
+  min-height: 0;
+}
+
 .bar {
   height: 0.7em;
   background: #ddd;

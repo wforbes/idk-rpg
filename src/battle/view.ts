@@ -1,4 +1,4 @@
-import type { BattleEvent, BattleState } from "./types";
+import type { BattleEvent, BattleState, StatusName } from "./types";
 
 /** The numbers the HUD shows. Stepped event by event so bars move in time with the narration. */
 export interface BattleView {
@@ -8,6 +8,8 @@ export interface BattleView {
   enemyHp: number;
   enemyShielded: boolean;
   temperature: number;
+  playerStatuses: StatusName[];
+  enemyStatuses: StatusName[];
 }
 
 export function viewOf(s: BattleState): BattleView {
@@ -18,6 +20,8 @@ export function viewOf(s: BattleState): BattleView {
     enemyHp: s.enemy.hp,
     enemyShielded: s.enemy.shielded,
     temperature: s.world.temperature,
+    playerStatuses: Object.keys(s.player.statuses) as StatusName[],
+    enemyStatuses: Object.keys(s.enemy.statuses) as StatusName[],
   };
 }
 
@@ -42,6 +46,14 @@ export function stepView(v: BattleView, e: BattleEvent): BattleView {
     case "restored":
       if (e.who !== "player") return v;
       return e.resource === "mana" ? { ...v, playerMana: v.playerMana + e.amount } : { ...v, playerEnergy: v.playerEnergy + e.amount };
+    case "statusApplied": {
+      const key = e.who === "player" ? "playerStatuses" : "enemyStatuses";
+      return v[key].includes(e.status) ? v : { ...v, [key]: [...v[key], e.status] };
+    }
+    case "statusEnded": {
+      const key = e.who === "player" ? "playerStatuses" : "enemyStatuses";
+      return { ...v, [key]: v[key].filter((x) => x !== e.status) };
+    }
     default:
       return v;
   }

@@ -45,6 +45,21 @@ export interface Fighter {
   shielded: boolean;
   /** Physical moves miss while this is set. */
   dodging: boolean;
+  /** Timed statuses: turns remaining. */
+  statuses: Partial<Record<StatusName, number>>;
+  /** Fixed quirks from the enemy definition. */
+  traits: FighterTraits;
+}
+
+export type StatusName = "chilled" | "scared";
+
+export interface FighterTraits {
+  /** Can't be chilled. */
+  chillImmune?: boolean;
+  /** Takes half damage from frostbite. */
+  frostHalf?: boolean;
+  /** Extra fire damage taken while the air is hot. */
+  hotFireBonus?: number;
 }
 
 export type Resource = "mana" | "energy";
@@ -83,6 +98,9 @@ export type BattleEvent =
   | { type: "damage"; who: Side; target: Side; amount: number }
   | { type: "regen"; who: Side; amount: number; resource: Resource }
   | { type: "log"; who: Side; text: string }
+  | { type: "statusApplied"; who: Side; status: StatusName; turns: number }
+  | { type: "statusEnded"; who: Side; status: StatusName }
+  | { type: "immune"; who: Side; status: StatusName }
   | { type: "itemUsed"; who: Side; item: string }
   | { type: "itemRejected"; who: Side; item: string; reason: "extraItem" | "notOwned" }
   | { type: "temperatureRaised"; temperature: number }

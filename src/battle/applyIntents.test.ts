@@ -4,7 +4,7 @@ import { applyIntents } from "./applyIntents";
 import type { BattleEvent, BattleState, Fighter, Intent } from "./types";
 
 const fighter = (over: Partial<Fighter> = {}): Fighter => ({
-  name: "X", level: 1, hp: 24, maxHp: 24, mana: 10, maxMana: 10, energy: 12, maxEnergy: 12, speed: 5, shielded: false, dodging: false, ...over,
+  name: "X", level: 1, hp: 24, maxHp: 24, mana: 10, maxMana: 10, energy: 12, maxEnergy: 12, speed: 5, shielded: false, dodging: false, statuses: {}, traits: {}, ...over,
 });
 
 const battle = (opts: { player?: Partial<Fighter>; enemy?: Partial<Fighter>; temperature?: number } = {}): BattleState => ({

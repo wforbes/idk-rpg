@@ -39,17 +39,17 @@ describe("createBattle", () => {
 describe("snapshotFor", () => {
   test("player view", () => {
     expect(snapshotFor(fresh(), "player")).toEqual({
-      self: { hp: 30, maxHp: 30, mana: 10, maxMana: 10, energy: 12, maxEnergy: 12, speed: 5 },
+      self: { hp: 30, maxHp: 30, mana: 10, maxMana: 10, energy: 12, maxEnergy: 12, speed: 5, chilled: false },
       world: { temperature: 24 },
-      enemy: { name: "Bugblob", hp: 24, maxHp: 24, shielded: false, dodging: false, speed: 6 },
+      enemy: { name: "Bugblob", hp: 24, maxHp: 24, shielded: false, dodging: false, speed: 6, chilled: false, scared: false },
     });
   });
 
   test("enemy view", () => {
     expect(snapshotFor(fresh(), "enemy")).toEqual({
-      self: { name: "Bugblob", hp: 24, maxHp: 24, shielded: false, dodging: false },
+      self: { name: "Bugblob", hp: 24, maxHp: 24, shielded: false, dodging: false, chilled: false, scared: false },
       world: { temperature: 24 },
-      enemy: { hp: 30, maxHp: 30, mana: 10, energy: 12 },
+      enemy: { hp: 30, maxHp: 30, mana: 10, energy: 12, chilled: false, speed: 5 },
     });
   });
 });
