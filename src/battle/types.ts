@@ -107,6 +107,8 @@ export type BattleEvent =
   | { type: "statusEnded"; who: Side; status: StatusName }
   | { type: "immune"; who: Side; status: StatusName }
   | { type: "resolveLost"; who: Side; amount: number }
+  | { type: "dodgeUp"; who: Side }
+  | { type: "aura"; who: Side; temperature: number }
   /** The enemy's will ran out — a win, distinct from a knockout ("won"). */
   | { type: "gaveUp" }
   | { type: "itemUsed"; who: Side; item: string }

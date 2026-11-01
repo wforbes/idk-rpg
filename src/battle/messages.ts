@@ -65,6 +65,10 @@ export function describeEvent(e: BattleEvent, s: BattleState): string {
       return `console.log: ${e.text}`;
     case "fled":
       return "You got away safely.";
+    case "dodgeUp":
+      return e.who === "enemy" ? `${s.enemy.name} flickers out of reach!` : "You dodge out of reach!";
+    case "aura":
+      return `${s.enemy.name}'s cold aura chills the air. It's ${e.temperature}° now.`;
     case "resolveLost":
       return e.who === "enemy" ? `${s.enemy.name}'s will to fight drops by ${e.amount}.` : `Your resolve drops by ${e.amount}.`;
     case "won":

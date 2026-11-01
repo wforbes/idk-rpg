@@ -35,7 +35,7 @@ export function createBattle(enemyId: string, player: PlayerStats, opts: BattleO
     enemy: {
       name: def.name, level: def.level, hp: def.maxHp, maxHp: def.maxHp,
       mana: 0, maxMana: 0, energy: 0, maxEnergy: 0, speed: def.speed, shielded: false, dodging: false,
-      statuses: {}, traits: {}, resolve: def.maxResolve, maxResolve: def.maxResolve,
+      statuses: {}, traits: { ...def.traits }, resolve: def.maxResolve, maxResolve: def.maxResolve,
     },
     world: { temperature: START_TEMPERATURE },
     turn: 1,
@@ -163,9 +163,17 @@ function act(draft: BattleState, side: Side, playerCode: string, deps: TurnDeps)
   const actions = isPlayer ? draft.knownAbilities : def.abilities;
   const rolls = isPlayer ? [] : [deps.rng(), deps.rng(), deps.rng()];
   const items = isPlayer ? draft.items : [];
-  const result = deps.runCode(isPlayer ? playerCode : def.script, snapshotFor(draft, side), { actions, rolls, items });
+  const before: BattleEvent[] = [];
+  if (!isPlayer && def.aura) {
+    draft.world.temperature = Math.min(TEMP_MAX, Math.max(TEMP_MIN, draft.world.temperature + def.aura.temperature));
+    before.push({ type: "aura", who: side, temperature: draft.world.temperature });
+  }
+  // The script sees whether it was dodging, but the dodge itself ends as it acts.
+  const snapshot = snapshotFor(draft, side);
+  draft[side].dodging = false;
+  const result = deps.runCode(isPlayer ? playerCode : def.script, snapshot, { actions, rolls, items });
   const logs: BattleEvent[] = isPlayer ? result.logs.map((text) => ({ type: "log", who: side, text })) : [];
-  if (!result.ok) return [...logs, { type: "codeError", who: side, message: result.error }];
-  if (!result.intents.length) return [...logs, { type: "noAction", who: side }];
-  return [...logs, ...applyIntents(draft, side, actions, result.intents)];
+  if (!result.ok) return [...before, ...logs, { type: "codeError", who: side, message: result.error }];
+  if (!result.intents.length) return [...before, ...logs, { type: "noAction", who: side }];
+  return [...before, ...logs, ...applyIntents(draft, side, actions, result.intents)];
 }

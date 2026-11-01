@@ -9,7 +9,7 @@ describe("battle view", () => {
   test("viewOf copies the displayed numbers", () => {
     expect(viewOf(s)).toEqual({
       playerHp: 30, playerMana: 10, playerEnergy: 12, enemyHp: 24, enemyShielded: false, temperature: 24,
-      playerStatuses: [], enemyStatuses: [], enemyResolve: 50,
+      playerStatuses: [], enemyStatuses: [], enemyResolve: 50, enemyDodging: false,
     });
   });
 

@@ -20,6 +20,9 @@ export const EMBER_HOT_THRESHOLD = 25;
 export const EMBER_HOT_BONUS = 2;
 export const EMBER_MELT_FUEL = 5;
 export const SLIME_SLAP_DAMAGE = 5;
+export const BYTE_BITE_DAMAGE = 4;
+export const ICE_BREATH_DAMAGE = 3;
+export const SNOWBALL_DAMAGE = 6;
 export const ENERGY_REGEN = 2;
 export const TAUNT_RESOLVE = 15;
 export const SCARED_MULTIPLIER = 2;
@@ -69,7 +72,8 @@ export const ABILITIES: Record<string, Ability> = {
       }
       const hot = draft.world.temperature > EMBER_HOT_THRESHOLD ? EMBER_HOT_BONUS : 0;
       const hands = hasMod(draft, user, "hotHands") ? HOT_HANDS_BONUS : 0;
-      events.push(...dealDamage(draft, user, fuel * 2 + hot + hands));
+      const weakness = hot ? (target.traits.hotFireBonus ?? 0) : 0;
+      events.push(...dealDamage(draft, user, fuel * 2 + hot + hands + weakness));
       return events;
     },
   },
@@ -108,6 +112,40 @@ export const ABILITIES: Record<string, Ability> = {
       const target = opponent(user);
       return [...loseResolve(draft, target, TAUNT_RESOLVE), ...applyStatus(draft, target, "scared", SCARED_TURNS)];
     },
+  },
+  blink: {
+    id: "blink",
+    kind: "other",
+    signature: "blink()",
+    notes: "dodges until its next action — physical moves miss",
+    apply(draft, user) {
+      draft[user].dodging = true;
+      return [{ type: "dodgeUp", who: user }];
+    },
+  },
+  byteBite: {
+    id: "byteBite",
+    kind: "other",
+    signature: "byteBite()",
+    notes: `${BYTE_BITE_DAMAGE} damage`,
+    apply: (draft, user) => dealDamage(draft, user, BYTE_BITE_DAMAGE),
+  },
+  iceBreath: {
+    id: "iceBreath",
+    kind: "other",
+    signature: "iceBreath()",
+    notes: `${ICE_BREATH_DAMAGE} damage · chills`,
+    apply: (draft, user) => [
+      ...dealDamage(draft, user, ICE_BREATH_DAMAGE),
+      ...applyStatus(draft, opponent(user), "chilled", CHILL_TURNS),
+    ],
+  },
+  snowball: {
+    id: "snowball",
+    kind: "other",
+    signature: "snowball()",
+    notes: `${SNOWBALL_DAMAGE} damage`,
+    apply: (draft, user) => dealDamage(draft, user, SNOWBALL_DAMAGE),
   },
   frostGather: {
     id: "frostGather",

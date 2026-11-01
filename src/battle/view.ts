@@ -11,6 +11,7 @@ export interface BattleView {
   playerStatuses: StatusName[];
   enemyStatuses: StatusName[];
   enemyResolve: number;
+  enemyDodging: boolean;
 }
 
 export function viewOf(s: BattleState): BattleView {
@@ -24,6 +25,7 @@ export function viewOf(s: BattleState): BattleView {
     playerStatuses: Object.keys(s.player.statuses) as StatusName[],
     enemyStatuses: Object.keys(s.enemy.statuses) as StatusName[],
     enemyResolve: s.enemy.resolve,
+    enemyDodging: s.enemy.dodging,
   };
 }
 
@@ -42,7 +44,10 @@ export function stepView(v: BattleView, e: BattleEvent): BattleView {
       return e.who === "enemy" ? { ...v, enemyShielded: true } : v;
     case "shieldMelted":
       return e.who === "player" ? { ...v, enemyShielded: false } : v;
+    case "dodgeUp":
+      return e.who === "enemy" ? { ...v, enemyDodging: true } : v;
     case "worldChanged":
+    case "aura":
     case "temperatureRaised":
       return { ...v, temperature: e.temperature };
     case "restored":

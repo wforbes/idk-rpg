@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { ENEMY_SPRITES } from "../art/enemySprites";
 import { NPC_PALETTES } from "../art/npcSprites";
 import { PLAYER_FRAMES, PLAYER_PALETTE } from "../art/playerSprite";
 import type { Facing } from "../world/types";
@@ -53,6 +54,16 @@ export function generateTextures(scene: Phaser.Scene): void {
   drawBlob(g, 0, 0, 16);
   g.generateTexture("enemy-bugblob", 16, 16);
   g.clear();
+
+  // Pixel-map enemies: 16×16 in the overworld, 3× in battle.
+  for (const [id, sprite] of Object.entries(ENEMY_SPRITES)) {
+    paintPixels(g, sprite.rows, sprite.palette, 0, 0);
+    g.generateTexture(`enemy-${id}`, 16, 16);
+    g.clear();
+    paintPixels(g, sprite.rows, sprite.palette, 0, 0, 3);
+    g.generateTexture(`battle-${id}`, 48, 48);
+    g.clear();
+  }
 
   // Battle sprites (48×48).
   drawBlob(g, 0, 0, 48);

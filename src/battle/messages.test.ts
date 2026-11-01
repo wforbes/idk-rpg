@@ -32,6 +32,8 @@ const ALL: BattleEvent[] = [
   { type: "log", who: "player", text: "true" },
   { type: "resolveLost", who: "enemy", amount: 15 },
   { type: "gaveUp" },
+  { type: "dodgeUp", who: "enemy" },
+  { type: "aura", who: "enemy", temperature: 22 },
   { type: "cast", who: "player", spell: "taunt" },
   { type: "statusApplied", who: "enemy", status: "chilled", turns: 2 },
   { type: "statusApplied", who: "player", status: "chilled", turns: 2 },

@@ -64,7 +64,9 @@ export class BattleHud {
     setBar(this.enemyHp, v.enemyHp, this.max.enemyHp);
     setBar(this.enemyWill, v.enemyResolve, this.max.enemyResolve);
     const tags = (names: string[]) => names.map((t) => el("span", `tag tag-${t}`, t));
-    this.enemyTags.replaceChildren(...tags([...(v.enemyShielded ? ["shielded"] : []), ...v.enemyStatuses]));
+    this.enemyTags.replaceChildren(
+      ...tags([...(v.enemyShielded ? ["shielded"] : []), ...(v.enemyDodging ? ["dodging"] : []), ...v.enemyStatuses]),
+    );
     this.playerTags.replaceChildren(...tags(v.playerStatuses));
     setBar(this.playerHp, v.playerHp, this.max.playerHp);
     this.playerHpText.textContent = `${v.playerHp}/${this.max.playerHp}`;

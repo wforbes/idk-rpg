@@ -11,7 +11,7 @@
  "version": "1.10",
  "tiledversion": "1.10.2",
  "nextlayerid": 4,
- "nextobjectid": 6,
+ "nextobjectid": 8,
  "layers": [
   {
    "id": 1,
@@ -766,6 +766,42 @@
        "name": "itemId",
        "type": "string",
        "value": "energyBar"
+      }
+     ]
+    },
+    {
+     "id": 6,
+     "name": "glitchling",
+     "type": "enemy",
+     "x": 224,
+     "y": 48,
+     "width": 16,
+     "height": 16,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "enemyId",
+       "type": "string",
+       "value": "glitchling"
+      }
+     ]
+    },
+    {
+     "id": 7,
+     "name": "frostcap",
+     "type": "enemy",
+     "x": 96,
+     "y": 192,
+     "width": 16,
+     "height": 16,
+     "rotation": 0,
+     "visible": true,
+     "properties": [
+      {
+       "name": "enemyId",
+       "type": "string",
+       "value": "frostcap"
       }
      ]
     }
