@@ -4,7 +4,7 @@ import { keymap } from "@codemirror/view";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { basicSetup, EditorView } from "codemirror";
 import { ABILITIES } from "../battle/abilities";
-import { ENEMIES, PLAYER_ABILITIES } from "../battle/enemies";
+import { ENEMIES } from "../battle/enemies";
 import { precheck, snapshotFor } from "../battle/engine";
 import type { BattleState, RunCode } from "../battle/types";
 import { awarenessRows, type AwarenessTab } from "./awareness";
@@ -42,7 +42,7 @@ export function openCastingOverlay(opts: CastingOverlayOptions): { close(): void
 
   const spellbook = el("div", "casting-col casting-book");
   spellbook.append(el("h3", "", "Spellbook"));
-  for (const id of PLAYER_ABILITIES) {
+  for (const id of state.knownAbilities) {
     const ability = ABILITIES[id];
     const entry = el("div", "spell");
     entry.append(el("code", "", `${id}(mana)`));

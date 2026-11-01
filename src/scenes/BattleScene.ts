@@ -36,7 +36,7 @@ export class BattleScene extends Phaser.Scene {
     // Typing in DOM panels (the code editor) must never be swallowed by Phaser's key capture.
     this.input.keyboard?.disableGlobalCapture();
 
-    this.state = createBattle(this.data_.enemyId, gameState.player);
+    this.state = createBattle(this.data_.enemyId, gameState.player, { knownAbilities: gameState.knownAbilities });
     this.drawScene();
     this.hud = new BattleHud(
       { enemy: this.state.enemy.name, level: this.state.enemy.level },

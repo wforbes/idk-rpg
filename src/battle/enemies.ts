@@ -14,9 +14,6 @@ export interface EnemyDef {
   tell(s: BattleState): string;
 }
 
-/** Spells the player knows in Phase 1. */
-export const PLAYER_ABILITIES = ["ember"];
-
 export const ENEMIES: Record<string, EnemyDef> = {
   bugblob: {
     id: "bugblob",

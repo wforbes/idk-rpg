@@ -7,11 +7,11 @@ export interface Snapshot {
   enemy: Record<string, Scalar>;
 }
 
-/** Something the code asked to do, e.g. ember(4) → { spell: "ember", fuel: 4 }. The engine decides if it's legal. */
-export interface Intent {
-  spell: string;
-  fuel?: unknown;
-}
+/**
+ * Something the code asked to do, e.g. ember(4) → { spell: "ember", fuel: 4 },
+ * or spaceHeater.use() → { item: "spaceHeater" }. The engine decides if it's legal.
+ */
+export type Intent = { spell: string; fuel?: unknown } | { item: string };
 
 export type SandboxResult =
   | { ok: true; intents: Intent[]; logs: string[] }
@@ -37,9 +37,15 @@ export interface Fighter {
   maxHp: number;
   mana: number;
   maxMana: number;
+  energy: number;
+  maxEnergy: number;
   speed: number;
   shielded: boolean;
+  /** Physical moves miss while this is set. */
+  dodging: boolean;
 }
+
+export type Resource = "mana" | "energy";
 
 export interface BattleState {
   enemyId: string;
@@ -48,21 +54,26 @@ export interface BattleState {
   world: { temperature: number };
   turn: number;
   outcome: "ongoing" | "won" | "lost" | "fled";
+  /** The player's callable abilities this battle. */
+  knownAbilities: string[];
+  /** The player's bought modifications (Task 6 fills these). */
+  mods: string[];
 }
 
 export type BattleEvent =
   | { type: "worldChanged"; temperature: number }
   | { type: "codeError"; who: Side; message: string }
   | { type: "noAction"; who: Side }
-  | { type: "rejected"; who: Side; spell: string; reason: "unknownSpell" | "extraDamagingCast" | "badFuel" }
-  | { type: "notEnoughMana"; who: Side; spell: string; fuel: number; mana: number }
-  | { type: "fizzle"; who: Side; spell: string; fuel: number; min: number; max: number }
-  | { type: "cast"; who: Side; spell: string; fuel?: number }
+  | { type: "rejected"; who: Side; spell: string; reason: "unknownSpell" | "extraAction" | "badFuel" }
+  | { type: "notEnoughFuel"; who: Side; spell: string; fuel: number; have: number; resource: Resource }
+  | { type: "fizzle"; who: Side; spell: string; fuel: number; min: number; max: number; resource: Resource }
+  | { type: "cast"; who: Side; spell: string; fuel?: number; resource?: Resource }
   | { type: "blocked"; who: Side; spell: string }
+  | { type: "missed"; who: Side; spell: string }
   | { type: "shieldUp"; who: Side }
   | { type: "shieldMelted"; who: Side }
   | { type: "damage"; who: Side; target: Side; amount: number }
-  | { type: "regen"; who: Side; amount: number }
+  | { type: "regen"; who: Side; amount: number; resource: Resource }
   | { type: "log"; who: Side; text: string }
   | { type: "fled" }
   | { type: "won" }

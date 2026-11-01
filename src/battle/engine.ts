@@ -1,6 +1,7 @@
 import type { PlayerStats } from "../state/gameState";
 import { applyIntents } from "./applyIntents";
-import { ENEMIES, PLAYER_ABILITIES } from "./enemies";
+import { ABILITIES, ENERGY_REGEN } from "./abilities";
+import { ENEMIES } from "./enemies";
 import type { BattleEvent, BattleState, RunCode, Side, Snapshot } from "./types";
 
 export type PlayerAction = { kind: "cast"; code: string } | { kind: "run" };
@@ -15,16 +16,29 @@ export const TEMP_MIN = 18;
 export const TEMP_MAX = 32;
 export const MANA_REGEN = 2;
 
-export function createBattle(enemyId: string, player: PlayerStats): BattleState {
+/** What the player brings into a fight beyond raw stats. */
+export interface BattleOptions {
+  knownAbilities?: string[];
+  mods?: string[];
+}
+
+export const DEFAULT_ABILITIES = ["ember", "jab"];
+
+export function createBattle(enemyId: string, player: PlayerStats, opts: BattleOptions = {}): BattleState {
   const def = ENEMIES[enemyId];
   if (!def) throw new Error(`unknown enemy: ${enemyId}`);
   return {
     enemyId,
-    player: { name: "You", level: 1, ...player, shielded: false },
-    enemy: { name: def.name, level: def.level, hp: def.maxHp, maxHp: def.maxHp, mana: 0, maxMana: 0, speed: def.speed, shielded: false },
+    player: { name: "You", level: 1, ...player, shielded: false, dodging: false },
+    enemy: {
+      name: def.name, level: def.level, hp: def.maxHp, maxHp: def.maxHp,
+      mana: 0, maxMana: 0, energy: 0, maxEnergy: 0, speed: def.speed, shielded: false, dodging: false,
+    },
     world: { temperature: START_TEMPERATURE },
     turn: 1,
     outcome: "ongoing",
+    knownAbilities: [...(opts.knownAbilities ?? DEFAULT_ABILITIES)],
+    mods: [...(opts.mods ?? [])],
   };
 }
 
@@ -34,16 +48,16 @@ export function snapshotFor(s: BattleState, side: Side): Snapshot {
   if (side === "player") {
     const { player: p, enemy: e } = s;
     return {
-      self: { hp: p.hp, maxHp: p.maxHp, mana: p.mana, maxMana: p.maxMana },
+      self: { hp: p.hp, maxHp: p.maxHp, mana: p.mana, maxMana: p.maxMana, energy: p.energy, maxEnergy: p.maxEnergy, speed: p.speed },
       world,
-      enemy: { name: e.name, hp: e.hp, maxHp: e.maxHp, shielded: e.shielded },
+      enemy: { name: e.name, hp: e.hp, maxHp: e.maxHp, shielded: e.shielded, dodging: e.dodging, speed: e.speed },
     };
   }
   const { enemy: e, player: p } = s;
   return {
-    self: { name: e.name, hp: e.hp, maxHp: e.maxHp, shielded: e.shielded },
+    self: { name: e.name, hp: e.hp, maxHp: e.maxHp, shielded: e.shielded, dodging: e.dodging },
     world,
-    enemy: { hp: p.hp, maxHp: p.maxHp, mana: p.mana },
+    enemy: { hp: p.hp, maxHp: p.maxHp, mana: p.mana, energy: p.energy },
   };
 }
 
@@ -54,17 +68,23 @@ export function snapshotFor(s: BattleState, side: Side): Snapshot {
 export type PrecheckResult = { ok: true; logs: string[] } | { ok: false; message: string; logs: string[] };
 
 export function precheck(s: BattleState, code: string, runCode: RunCode): PrecheckResult {
-  const result = runCode(code, snapshotFor(s, "player"), { actions: PLAYER_ABILITIES, rolls: [] });
+  const result = runCode(code, snapshotFor(s, "player"), { actions: s.knownAbilities, rolls: [] });
   const { logs } = result;
   const fail = (message: string): PrecheckResult => ({ ok: false, message, logs });
   if (!result.ok) return fail(result.error);
   if (!result.intents.length) return fail("Your code didn't cast anything. Try calling ember(…) with some mana.");
 
-  for (const e of applyIntents(structuredClone(s), "player", PLAYER_ABILITIES, result.intents)) {
-    if (e.type === "rejected" && e.reason === "extraDamagingCast") return fail("Only one damaging spell per turn.");
-    if (e.type === "rejected" && e.reason === "badFuel") return fail(`${e.spell} needs a whole number of mana, like ${e.spell}(4).`);
+  for (const e of applyIntents(structuredClone(s), "player", s.knownAbilities, result.intents)) {
+    if (e.type === "rejected" && e.reason === "extraAction") return fail("Only one move, spell or taunt per turn.");
+    if (e.type === "rejected" && e.reason === "badFuel") {
+      const resource = ABILITIES[e.spell]?.fuel?.resource ?? "mana";
+      return fail(`${e.spell} needs a whole number of ${resource}, like ${e.spell}(4).`);
+    }
     if (e.type === "rejected") return fail(`You don't know a spell called ${e.spell} yet.`);
-    if (e.type === "notEnoughMana") return fail(`Not enough mana: ${e.spell}(${e.fuel}) needs ${e.fuel} MP and you have ${e.mana}.`);
+    if (e.type === "notEnoughFuel") {
+      const unit = e.resource === "mana" ? "MP" : "EN";
+      return fail(`Not enough ${e.resource}: ${e.spell}(${e.fuel}) needs ${e.fuel} ${unit} and you have ${e.have}.`);
+    }
   }
   return { ok: true, logs };
 }
@@ -93,10 +113,16 @@ export function resolveTurn(s: BattleState, action: PlayerAction, deps: TurnDeps
   }
 
   if (draft.outcome === "ongoing") {
-    const amount = Math.min(MANA_REGEN, draft.player.maxMana - draft.player.mana);
-    if (amount > 0) {
-      draft.player.mana += amount;
-      events.push({ type: "regen", who: "player", amount });
+    const p = draft.player;
+    const mana = Math.min(MANA_REGEN, p.maxMana - p.mana);
+    if (mana > 0) {
+      p.mana += mana;
+      events.push({ type: "regen", who: "player", amount: mana, resource: "mana" });
+    }
+    const energy = Math.min(ENERGY_REGEN, p.maxEnergy - p.energy);
+    if (energy > 0) {
+      p.energy += energy;
+      events.push({ type: "regen", who: "player", amount: energy, resource: "energy" });
     }
     draft.turn++;
   }
@@ -106,7 +132,7 @@ export function resolveTurn(s: BattleState, action: PlayerAction, deps: TurnDeps
 function act(draft: BattleState, side: Side, playerCode: string, deps: TurnDeps): BattleEvent[] {
   const def = ENEMIES[draft.enemyId];
   const isPlayer = side === "player";
-  const actions = isPlayer ? PLAYER_ABILITIES : def.abilities;
+  const actions = isPlayer ? draft.knownAbilities : def.abilities;
   const rolls = isPlayer ? [] : [deps.rng(), deps.rng(), deps.rng()];
   const result = deps.runCode(isPlayer ? playerCode : def.script, snapshotFor(draft, side), { actions, rolls });
   const logs: BattleEvent[] = isPlayer ? result.logs.map((text) => ({ type: "log", who: side, text })) : [];

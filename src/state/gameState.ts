@@ -5,6 +5,8 @@ export interface PlayerStats {
   maxHp: number;
   mana: number;
   maxMana: number;
+  energy: number;
+  maxEnergy: number;
   speed: number;
 }
 
@@ -22,14 +24,17 @@ export interface GameState {
   /** "picked:<entityId>", "defeated:<entityId>" */
   flags: Set<string>;
   respawn: Respawn;
+  /** Moves, spells and actions the player can call in battle. */
+  knownAbilities: string[];
 }
 
 export function createGameState(): GameState {
   return {
-    player: { hp: 30, maxHp: 30, mana: 10, maxMana: 10, speed: 5 },
+    player: { hp: 30, maxHp: 30, mana: 10, maxMana: 10, energy: 12, maxEnergy: 12, speed: 5 },
     inventory: [],
     flags: new Set(),
     respawn: { mapKey: "town", x: 15, y: 12, facing: "down" },
+    knownAbilities: ["ember", "jab"],
   };
 }
 
@@ -58,6 +63,7 @@ export function endBattle(s: GameState, outcome: "won" | "lost" | "fled", enemyE
   if (outcome === "won") setFlag(s, `defeated:${enemyEntityId}`);
   s.player.hp = s.player.maxHp;
   s.player.mana = s.player.maxMana;
+  s.player.energy = s.player.maxEnergy;
   return outcome === "lost" ? { ...s.respawn } : returnTo;
 }
 

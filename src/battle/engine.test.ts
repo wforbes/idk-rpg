@@ -28,7 +28,8 @@ describe("createBattle", () => {
   test("sets up Bugblob, the player and the world", () => {
     const s = fresh();
     expect(s.enemy).toMatchObject({ name: "Bugblob", level: 3, hp: 24, maxHp: 24, speed: 6, shielded: false });
-    expect(s.player).toMatchObject({ name: "You", hp: 30, maxHp: 30, mana: 10, maxMana: 10, speed: 5, shielded: false });
+    expect(s.player).toMatchObject({ name: "You", hp: 30, maxHp: 30, mana: 10, maxMana: 10, energy: 12, maxEnergy: 12, speed: 5, shielded: false });
+    expect(s.knownAbilities).toEqual(["ember", "jab"]);
     expect(s.world.temperature).toBe(24);
     expect(s.turn).toBe(1);
     expect(s.outcome).toBe("ongoing");
@@ -38,17 +39,17 @@ describe("createBattle", () => {
 describe("snapshotFor", () => {
   test("player view", () => {
     expect(snapshotFor(fresh(), "player")).toEqual({
-      self: { hp: 30, maxHp: 30, mana: 10, maxMana: 10 },
+      self: { hp: 30, maxHp: 30, mana: 10, maxMana: 10, energy: 12, maxEnergy: 12, speed: 5 },
       world: { temperature: 24 },
-      enemy: { name: "Bugblob", hp: 24, maxHp: 24, shielded: false },
+      enemy: { name: "Bugblob", hp: 24, maxHp: 24, shielded: false, dodging: false, speed: 6 },
     });
   });
 
   test("enemy view", () => {
     expect(snapshotFor(fresh(), "enemy")).toEqual({
-      self: { name: "Bugblob", hp: 24, maxHp: 24, shielded: false },
+      self: { name: "Bugblob", hp: 24, maxHp: 24, shielded: false, dodging: false },
       world: { temperature: 24 },
-      enemy: { hp: 30, maxHp: 30, mana: 10 },
+      enemy: { hp: 30, maxHp: 30, mana: 10, energy: 12 },
     });
   });
 });
@@ -103,13 +104,29 @@ describe("resolveTurn", () => {
   test("mana regenerates and caps", () => {
     const { state, events } = resolveTurn(fresh(), cast("ember(3)"), deps(SLAP));
     expect(state.player.mana).toBe(10 - 3 + 2);
-    expect(events).toContainEqual({ type: "regen", who: "player", amount: 2 });
+    expect(events).toContainEqual({ type: "regen", who: "player", amount: 2, resource: "mana" });
 
     const capped = fresh();
     capped.player.mana = 9;
     const r = resolveTurn(capped, cast("// nothing"), deps(SLAP));
     expect(r.state.player.mana).toBe(10);
-    expect(r.events).toContainEqual({ type: "regen", who: "player", amount: 1 });
+    expect(r.events).toContainEqual({ type: "regen", who: "player", amount: 1, resource: "mana" });
+  });
+
+  test("energy regenerates and caps", () => {
+    const { state, events } = resolveTurn(fresh(), cast("jab(3)"), deps(SLAP));
+    expect(state.player.energy).toBe(12 - 3 + 2);
+    expect(events).toContainEqual({ type: "regen", who: "player", amount: 2, resource: "energy" });
+    const full = resolveTurn(fresh(), cast("ember(3)"), deps(SLAP));
+    expect(full.events.some((e) => e.type === "regen" && e.resource === "energy")).toBe(false);
+  });
+
+  test("the player can branch between jab and ember at resolution", () => {
+    const code = "enemy.shielded ? ember(5) : jab(3)";
+    expect(resolveTurn(fresh(), cast(code), deps(SHIELD)).events.map((e) => e.type)).toContain("shieldMelted");
+    const slap = resolveTurn(fresh(), cast(code), deps(SLAP));
+    expect(slap.state.player.energy).toBe(12 - 3 + 2);
+    expect(slap.state.enemy.hp).toBe(24 - 6);
   });
 
   test("turn counter advances", () => {
@@ -195,7 +212,8 @@ describe("precheck", () => {
   });
 
   test("two damaging spells", () => {
-    expect(msg(fresh(), "ember(3); ember(3);")).toBe("Only one damaging spell per turn.");
+    expect(msg(fresh(), "ember(3); ember(3);")).toBe("Only one move, spell or taunt per turn.");
+    expect(msg(fresh(), "jab(3); ember(3);")).toBe("Only one move, spell or taunt per turn.");
   });
 
   test("bad fuel", () => {
@@ -207,6 +225,8 @@ describe("precheck", () => {
     const s = fresh();
     s.player.mana = 3;
     expect(msg(s, "ember(5)")).toBe("Not enough mana: ember(5) needs 5 MP and you have 3.");
+    s.player.energy = 2;
+    expect(msg(s, "jab(4)")).toBe("Not enough energy: jab(4) needs 4 EN and you have 2.");
   });
 
   test("precheck returns the dry run's logs", () => {

@@ -22,13 +22,13 @@ export function viewOf(s: BattleState): BattleView {
 export function stepView(v: BattleView, e: BattleEvent): BattleView {
   switch (e.type) {
     case "cast":
-      return e.who === "player" && e.fuel !== undefined ? { ...v, playerMana: v.playerMana - e.fuel } : v;
+      return e.who === "player" && e.fuel !== undefined && e.resource !== "energy" ? { ...v, playerMana: v.playerMana - e.fuel } : v;
     case "damage":
       return e.target === "player"
         ? { ...v, playerHp: Math.max(0, v.playerHp - e.amount) }
         : { ...v, enemyHp: Math.max(0, v.enemyHp - e.amount) };
     case "regen":
-      return { ...v, playerMana: v.playerMana + e.amount };
+      return e.resource === "mana" ? { ...v, playerMana: v.playerMana + e.amount } : v;
     case "shieldUp":
       return e.who === "enemy" ? { ...v, enemyShielded: true } : v;
     case "shieldMelted":

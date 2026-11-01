@@ -76,11 +76,11 @@ describe("sandbox", () => {
 
   test("no host access", () => {
     const r = ok('ember(typeof window === "undefined" && typeof fetch === "undefined" && typeof require === "undefined" ? 1 : 0)');
-    expect(r.intents[0].fuel).toBe(1);
+    expect((r.intents[0] as { fuel?: unknown }).fuel).toBe(1);
   });
 
   test("runs are isolated", () => {
     ok("globalThis.x = 1");
-    expect(ok('ember(typeof x === "undefined" ? 1 : 0)').intents[0].fuel).toBe(1);
+    expect((ok('ember(typeof x === "undefined" ? 1 : 0)').intents[0] as { fuel?: unknown }).fuel).toBe(1);
   });
 });
