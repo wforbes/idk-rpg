@@ -45,6 +45,7 @@ export function createBattle(enemyId: string, player: PlayerStats, opts: BattleO
     items: [...(opts.items ?? [])],
     itemUsedThisTurn: false,
     consumed: [],
+    skillUses: {},
   };
 }
 

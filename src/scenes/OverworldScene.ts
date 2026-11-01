@@ -5,6 +5,7 @@ import { DialogueRunner } from "../dialogue/runner";
 import { gameState, hasFlag, pickUp } from "../state/gameState";
 import { DialogueBox } from "../ui/DialogueBox";
 import { InventoryScreen } from "../ui/InventoryScreen";
+import { SkillsScreen } from "../ui/SkillsScreen";
 import { parseTiledMap, TILE_SIZE } from "../world/areaMap";
 import { findInteractable, tryStep, type Entity } from "../world/movement";
 import { nextPaceStep, paceTileFree, type PacingNpc } from "../world/npcPacing";
@@ -18,7 +19,7 @@ export interface OverworldData {
   facing: Facing;
 }
 
-type Mode = "explore" | "moving" | "dialogue" | "inventory" | "transition";
+type Mode = "explore" | "moving" | "dialogue" | "inventory" | "skills" | "transition";
 
 interface LiveEntity extends Entity {
   sprite: Phaser.GameObjects.Sprite;
@@ -56,9 +57,11 @@ export class OverworldScene extends Phaser.Scene {
     right: Phaser.Input.Keyboard.Key[];
     interact: Phaser.Input.Keyboard.Key[];
     inventory: Phaser.Input.Keyboard.Key[];
+    skills: Phaser.Input.Keyboard.Key[];
     back: Phaser.Input.Keyboard.Key[];
   };
   private inventory!: InventoryScreen;
+  private skills!: SkillsScreen;
 
   constructor() {
     super(SCENES.overworld);
@@ -99,9 +102,11 @@ export class OverworldScene extends Phaser.Scene {
 
     this.dialogueBox = new DialogueBox((i) => this.chooseByClick(i));
     this.inventory = new InventoryScreen();
+    this.skills = new SkillsScreen();
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.dialogueBox.close();
       this.inventory.close();
+      this.skills.close();
     });
 
     this.time.addEvent({ delay: PACE_MS, loop: true, callback: () => this.paceNpcs() });
@@ -111,10 +116,16 @@ export class OverworldScene extends Phaser.Scene {
   update(): void {
     if (this.mode === "dialogue") return this.updateDialogue();
     if (this.mode === "inventory") return this.updateInventory();
+    if (this.mode === "skills") return this.updateSkills();
     if (this.mode !== "explore") return;
     if (this.justPressed("inventory")) {
       this.mode = "inventory";
       this.inventory.open(gameState.inventory);
+      return;
+    }
+    if (this.justPressed("skills")) {
+      this.mode = "skills";
+      this.skills.open(gameState);
       return;
     }
     if (this.justPressed("interact")) {
@@ -195,6 +206,7 @@ export class OverworldScene extends Phaser.Scene {
       right: keys(K.RIGHT, K.D),
       interact: keys(K.SPACE, K.E, K.ENTER),
       inventory: keys(K.I),
+      skills: keys(K.K),
       back: keys(K.ESC),
     };
   }
@@ -308,6 +320,17 @@ export class OverworldScene extends Phaser.Scene {
     if (this.justPressed("down")) this.inventory.move(1);
     if (this.justPressed("inventory") || this.justPressed("back")) {
       this.inventory.close();
+      this.holdLock = true;
+      this.mode = "explore";
+    }
+  }
+
+  private updateSkills(): void {
+    if (this.justPressed("up")) this.skills.move(-1);
+    if (this.justPressed("down")) this.skills.move(1);
+    if (this.justPressed("interact")) this.skills.buy();
+    if (this.justPressed("skills") || this.justPressed("back")) {
+      this.skills.close();
       this.holdLock = true;
       this.mode = "explore";
     }

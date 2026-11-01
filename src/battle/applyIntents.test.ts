@@ -19,6 +19,7 @@ const battle = (opts: { player?: Partial<Fighter>; enemy?: Partial<Fighter>; tem
   items: [],
   itemUsedThisTurn: false,
   consumed: [],
+  skillUses: {},
 });
 
 const ember = (fuel?: unknown): Intent => (fuel === undefined ? { spell: "ember" } : { spell: "ember", fuel });
@@ -255,6 +256,59 @@ describe("applyIntents: resolve and taunt", () => {
     const s = battle();
     cast(s, ember(3));
     expect(s.outcome).toBe("ongoing");
+  });
+});
+
+describe("applyIntents: skill uses and mods", () => {
+  test("skill uses count only successes", () => {
+    const s = battle();
+    cast(s, ember(3));
+    expect(s.skillUses).toEqual({ ember: 1 });
+    cast(s, ember(9)); // fizzle
+    const shielded = battle({ enemy: { shielded: true } });
+    cast(shielded, jab(3)); // blocked
+    cast(shielded, ember(4)); // blocked
+    expect(s.skillUses).toEqual({ ember: 1 });
+    expect(shielded.skillUses).toEqual({});
+  });
+
+  test("enemy actions don't earn skill uses", () => {
+    const s = battle();
+    applyIntents(s, "enemy", ["slimeSlap"], [{ spell: "slimeSlap" }]);
+    expect(s.skillUses).toEqual({});
+  });
+
+  test("kindling widens ember to 2–5", () => {
+    const s = battle();
+    s.mods = ["kindling"];
+    const events = cast(s, ember(2));
+    expect(events.some((e) => e.type === "fizzle")).toBe(false);
+    expect(s.enemy.hp).toBe(24 - 4);
+  });
+
+  test("hotHands adds 2 to ember, heavyJab adds 2 to jab", () => {
+    const a = battle();
+    a.mods = ["hotHands"];
+    cast(a, ember(3));
+    expect(a.enemy.hp).toBe(24 - 8);
+    const b = battle();
+    b.mods = ["heavyJab"];
+    cast(b, jab(3));
+    expect(b.enemy.hp).toBe(24 - 8);
+  });
+
+  test("deepChill makes frostbite chill for 3 turns", () => {
+    const s = battle();
+    s.mods = ["deepChill"];
+    cast(s, { spell: "frostbite", fuel: 2 });
+    expect(s.enemy.statuses.chilled).toBe(3);
+  });
+
+  test("mods only help the player", () => {
+    const s = battle();
+    s.mods = ["hotHands"];
+    applyIntents(s, "enemy", ["ember"], [{ spell: "ember", fuel: 3 }]);
+    expect(s.player.hp).toBe(30 - 6); // no Hot Hands bonus for the enemy
   });
 });
 

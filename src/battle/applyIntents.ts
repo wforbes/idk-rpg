@@ -57,7 +57,11 @@ export function applyIntents(draft: BattleState, user: Side, allowed: string[], 
       events.push({ type: "cast", who: user, spell });
     }
 
-    events.push(...ability.apply(draft, user, spent));
+    const effects = ability.apply(draft, user, spent);
+    events.push(...effects);
+    if (user === "player" && !effects.some((e) => e.type === "blocked" || e.type === "missed")) {
+      draft.skillUses[spell] = (draft.skillUses[spell] ?? 0) + 1;
+    }
     // A knockout beats giving up when both happen on the same hit.
     if (draft.enemy.hp <= 0) {
       draft.outcome = "won";

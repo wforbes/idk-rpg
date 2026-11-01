@@ -84,6 +84,8 @@ export interface BattleState {
   itemUsedThisTurn: boolean;
   /** Consumables used up this battle, in order — removed from the bag afterwards. */
   consumed: string[];
+  /** Successful uses per player ability this battle — become skill points afterwards. */
+  skillUses: Record<string, number>;
 }
 
 export type BattleEvent =

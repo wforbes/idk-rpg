@@ -22,5 +22,6 @@ npm run build      # production build into dist/
 | Arrow keys / WASD | Move |
 | Space / E / Enter | Interact, advance text |
 | I | Inventory |
+| K | Skills (level, skill points, mods) |
 | Esc | Close panel / back |
 | Ctrl+Enter | Cast (in the code editor) |

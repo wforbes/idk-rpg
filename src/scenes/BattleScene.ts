@@ -41,6 +41,7 @@ export class BattleScene extends Phaser.Scene {
 
     this.state = createBattle(this.data_.enemyId, gameState.player, {
       knownAbilities: gameState.knownAbilities,
+      mods: gameState.mods,
       items: gameState.inventory.filter((id) => id in BATTLE_ITEMS),
     });
     this.drawScene();

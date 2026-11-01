@@ -90,3 +90,60 @@
   color: #666;
   text-align: right;
 }
+
+/* Skills: same frame as the bag. */
+.skills {
+  left: 8%;
+  right: 8%;
+  top: 8%;
+  bottom: 8%;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+
+.skills-level {
+  margin: 0 0 0.8em;
+}
+
+.skills-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+}
+
+.skills-ability {
+  margin-top: 0.6em;
+  color: #8a4b00;
+}
+
+.skills-mod {
+  display: flex;
+  justify-content: space-between;
+  gap: 1em;
+  padding-left: 2.2em;
+  position: relative;
+  cursor: pointer;
+  font-size: 0.85em;
+}
+
+.skills-mod.selected::before {
+  content: "▶";
+  position: absolute;
+  left: 1em;
+}
+
+.skills-mod.owned {
+  color: #2b7a3d;
+}
+
+.skills-status {
+  white-space: nowrap;
+}
+
+.skills-message {
+  min-height: 1.6em;
+  margin: 0.4em 0;
+  font-size: 0.85em;
+}

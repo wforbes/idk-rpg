@@ -7,7 +7,8 @@ describe("game state", () => {
   test("starting stats", () => {
     const s = createGameState();
     expect(s.player).toEqual({ hp: 30, maxHp: 30, mana: 10, maxMana: 10, energy: 12, maxEnergy: 12, speed: 5 });
-    expect(s.knownAbilities).toEqual(["ember", "jab", "frostbite", "taunt"]);
+    expect(s.knownAbilities).toEqual(["ember", "jab", "taunt"]);
+    expect(s).toMatchObject({ level: 1, xp: 0, skillPoints: {}, mods: [] });
     expect(s.inventory).toEqual([]);
     expect(s.respawn).toEqual({ mapKey: "town", x: 15, y: 12, facing: "down" });
   });

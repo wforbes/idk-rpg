@@ -1,3 +1,4 @@
+import { DEEP_CHILL_TURNS, HEAVY_JAB_BONUS, HOT_HANDS_BONUS, KINDLING_MIN } from "../data/progression";
 import { applyStatus, CHILL_TURNS, SCARED_TURNS } from "./statuses";
 import type { BattleEvent, BattleState, Resource, Side } from "./types";
 
@@ -41,10 +42,14 @@ function dealDamage(draft: BattleState, user: Side, amount: number): BattleEvent
   return [{ type: "damage", who: user, target, amount }, ...loseResolve(draft, target, Math.ceil(amount / 2))];
 }
 
+/** True when the player owns this modification (mods never help the enemy). */
+const hasMod = (draft: BattleState, user: Side, mod: string) => user === "player" && draft.mods.includes(mod);
+
 /** The fuel window an ability has for this user, after modifications. */
-export function fuelWindow(_draft: BattleState, _user: Side, ability: Ability): { min: number; max: number } {
+export function fuelWindow(draft: BattleState, user: Side, ability: Ability): { min: number; max: number } {
   if (!ability.fuel) return { min: 0, max: 0 };
-  return { min: ability.fuel.min, max: ability.fuel.max };
+  const min = ability.id === "ember" && hasMod(draft, user, "kindling") ? KINDLING_MIN : ability.fuel.min;
+  return { min, max: ability.fuel.max };
 }
 
 export const ABILITIES: Record<string, Ability> = {
@@ -62,8 +67,9 @@ export const ABILITIES: Record<string, Ability> = {
         target.shielded = false;
         events.push({ type: "shieldMelted", who: user });
       }
-      const bonus = draft.world.temperature > EMBER_HOT_THRESHOLD ? EMBER_HOT_BONUS : 0;
-      events.push(...dealDamage(draft, user, fuel * 2 + bonus));
+      const hot = draft.world.temperature > EMBER_HOT_THRESHOLD ? EMBER_HOT_BONUS : 0;
+      const hands = hasMod(draft, user, "hotHands") ? HOT_HANDS_BONUS : 0;
+      events.push(...dealDamage(draft, user, fuel * 2 + hot + hands));
       return events;
     },
   },
@@ -77,7 +83,7 @@ export const ABILITIES: Record<string, Ability> = {
       const target = draft[opponent(user)];
       if (target.shielded) return [{ type: "blocked", who: user, spell: "jab" }];
       if (target.dodging) return [{ type: "missed", who: user, spell: "jab" }];
-      return dealDamage(draft, user, fuel * 2);
+      return dealDamage(draft, user, fuel * 2 + (hasMod(draft, user, "heavyJab") ? HEAVY_JAB_BONUS : 0));
     },
   },
   frostbite: {
@@ -89,7 +95,8 @@ export const ABILITIES: Record<string, Ability> = {
     apply(draft, user, fuel = 0) {
       const target = opponent(user);
       const damage = draft[target].traits.frostHalf ? Math.floor(fuel / 2) : fuel;
-      return [...dealDamage(draft, user, damage), ...applyStatus(draft, target, "chilled", CHILL_TURNS)];
+      const turns = hasMod(draft, user, "deepChill") ? DEEP_CHILL_TURNS : CHILL_TURNS;
+      return [...dealDamage(draft, user, damage), ...applyStatus(draft, target, "chilled", turns)];
     },
   },
   taunt: {

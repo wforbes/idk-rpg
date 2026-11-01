@@ -26,6 +26,12 @@ export interface GameState {
   respawn: Respawn;
   /** Moves, spells and actions the player can call in battle. */
   knownAbilities: string[];
+  level: number;
+  xp: number;
+  /** Earned per ability by using it successfully; spent on mods. */
+  skillPoints: Record<string, number>;
+  /** Bought modifications (ids from data/progression.ts MODS). */
+  mods: string[];
 }
 
 export function createGameState(): GameState {
@@ -34,7 +40,11 @@ export function createGameState(): GameState {
     inventory: [],
     flags: new Set(),
     respawn: { mapKey: "town", x: 15, y: 12, facing: "down" },
-    knownAbilities: ["ember", "jab", "frostbite", "taunt"],
+    knownAbilities: ["ember", "jab", "taunt"],
+    level: 1,
+    xp: 0,
+    skillPoints: {},
+    mods: [],
   };
 }
 
