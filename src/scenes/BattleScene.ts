@@ -7,7 +7,7 @@ import type { BattleEvent, BattleState, RunCode } from "../battle/types";
 import { stepView, viewOf } from "../battle/view";
 import { endBattle, gameState, type Respawn } from "../state/gameState";
 import { BattleHud, type MenuChoice } from "../ui/battleHud";
-import { openCastingOverlay } from "../ui/castingOverlay";
+import { openCastingOverlay, type SpellbookTab } from "../ui/castingOverlay";
 import { SCENES } from "./keys";
 
 export interface BattleData {
@@ -22,7 +22,7 @@ export class BattleScene extends Phaser.Scene {
   protected hud!: BattleHud;
   protected runCode!: RunCode;
   /** The last code the player cast in this battle; the editor reopens with it. */
-  protected lastCode = "// Cast a spell, e.g. ember(4);\n";
+  protected lastCode = "// e.g. ember(4); or jab(3);\n";
 
   constructor() {
     super(SCENES.battle);
@@ -40,7 +40,12 @@ export class BattleScene extends Phaser.Scene {
     this.drawScene();
     this.hud = new BattleHud(
       { enemy: this.state.enemy.name, level: this.state.enemy.level },
-      { playerHp: this.state.player.maxHp, playerMana: this.state.player.maxMana, enemyHp: this.state.enemy.maxHp },
+      {
+        playerHp: this.state.player.maxHp,
+        playerMana: this.state.player.maxMana,
+        playerEnergy: this.state.player.maxEnergy,
+        enemyHp: this.state.enemy.maxHp,
+      },
     );
     this.hud.update(viewOf(this.state));
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.hud.destroy());
@@ -56,17 +61,23 @@ export class BattleScene extends Phaser.Scene {
   }
 
   protected playerTurn(): void {
-    this.hud.showMenu((choice) => void this.onPick(choice));
+    this.hud.showMenu((choice) => void this.onPick(choice), this.enabledMenu());
+  }
+
+  /** Menu options that do something right now. */
+  protected enabledMenu(): Set<MenuChoice> {
+    return new Set<MenuChoice>(["attack", "spell", "run"]);
   }
 
   private async onPick(choice: MenuChoice): Promise<void> {
-    if (choice === "spell") return this.openSpell();
+    if (choice === "attack") return this.openSpell("moves");
+    if (choice === "spell") return this.openSpell("spells");
     if (choice === "run") return this.resolve({ kind: "run" });
     await this.hud.showMessages(["You haven't learned that yet."]);
     this.playerTurn();
   }
 
-  protected openSpell(): void {
+  protected openSpell(tab: SpellbookTab): void {
     const keyboard = this.input.keyboard;
     if (keyboard) keyboard.enabled = false;
     this.hud.setHidden(true);
@@ -76,6 +87,7 @@ export class BattleScene extends Phaser.Scene {
     };
     const overlay = openCastingOverlay({
       state: this.state,
+      tab,
       initialCode: this.lastCode,
       runCode: this.runCode,
       onCast: (code) => {

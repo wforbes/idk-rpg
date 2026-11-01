@@ -7,11 +7,22 @@ const s = createBattle("bugblob", createGameState().player);
 
 describe("battle view", () => {
   test("viewOf copies the displayed numbers", () => {
-    expect(viewOf(s)).toEqual({ playerHp: 30, playerMana: 10, enemyHp: 24, enemyShielded: false, temperature: 24 });
+    expect(viewOf(s)).toEqual({ playerHp: 30, playerMana: 10, playerEnergy: 12, enemyHp: 24, enemyShielded: false, temperature: 24 });
   });
 
   test("a cast spends the shown mana", () => {
     expect(stepView(viewOf(s), { type: "cast", who: "player", spell: "ember", fuel: 4 }).playerMana).toBe(6);
+  });
+
+  test("a jab spends the shown energy, not mana", () => {
+    const v = stepView(viewOf(s), { type: "cast", who: "player", spell: "jab", fuel: 3, resource: "energy" });
+    expect(v.playerEnergy).toBe(9);
+    expect(v.playerMana).toBe(10);
+  });
+
+  test("energy regen raises the shown energy", () => {
+    const v = stepView({ ...viewOf(s), playerEnergy: 5 }, { type: "regen", who: "player", amount: 2, resource: "energy" });
+    expect(v.playerEnergy).toBe(7);
   });
 
   test("damage lowers the target's shown HP, never below 0", () => {

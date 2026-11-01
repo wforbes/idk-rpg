@@ -4,12 +4,12 @@ import "./battle.css";
 
 export type MenuChoice = "attack" | "spell" | "item" | "taunt" | "run";
 
-const MENU: { id: MenuChoice; label: string; dimmed: boolean }[] = [
-  { id: "attack", label: "Attack", dimmed: true },
-  { id: "spell", label: "Spell", dimmed: false },
-  { id: "item", label: "Item", dimmed: true },
-  { id: "taunt", label: "Taunt", dimmed: true },
-  { id: "run", label: "Run", dimmed: false },
+const MENU: { id: MenuChoice; label: string }[] = [
+  { id: "attack", label: "Attack" },
+  { id: "spell", label: "Spell" },
+  { id: "item", label: "Item" },
+  { id: "taunt", label: "Taunt" },
+  { id: "run", label: "Run" },
 ];
 
 const ADVANCE_KEYS = new Set([" ", "Enter", "e", "E"]);
@@ -27,20 +27,26 @@ export class BattleHud {
   private playerHp = bar("hp");
   private playerMpText = el("span");
   private playerMp = bar("mp");
+  private playerEnText = el("span");
+  private playerEn = bar("en");
   private text = el("div", "battle-text");
   private menu = el("ul", "battle-menu");
   private onKey: ((e: KeyboardEvent) => void) | null = null;
 
   constructor(
     names: { enemy: string; level: number },
-    private readonly max: { playerHp: number; playerMana: number; enemyHp: number },
+    private readonly max: { playerHp: number; playerMana: number; playerEnergy: number; enemyHp: number },
   ) {
     const enemyBox = el("div", "panel battle-enemy");
     this.enemyName.textContent = `${names.enemy.toUpperCase()}  Lv${names.level}`;
     enemyBox.append(this.enemyName, this.enemyHp.wrap, this.enemyTags);
 
     const playerBox = el("div", "panel battle-player");
-    playerBox.append(row("HP", this.playerHpText), this.playerHp.wrap, row("MP", this.playerMpText), this.playerMp.wrap);
+    playerBox.append(
+      row("HP", this.playerHpText), this.playerHp.wrap,
+      row("MP", this.playerMpText), this.playerMp.wrap,
+      row("EN", this.playerEnText), this.playerEn.wrap,
+    );
 
     const bottom = el("div", "panel battle-bottom");
     bottom.append(this.text, this.menu);
@@ -57,6 +63,8 @@ export class BattleHud {
     this.playerHpText.textContent = `${v.playerHp}/${this.max.playerHp}`;
     setBar(this.playerMp, v.playerMana, this.max.playerMana);
     this.playerMpText.textContent = `${v.playerMana}/${this.max.playerMana}`;
+    setBar(this.playerEn, v.playerEnergy, this.max.playerEnergy);
+    this.playerEnText.textContent = `${v.playerEnergy}/${this.max.playerEnergy}`;
   }
 
   /** Shows one line at a time; each advances on Space/E/Enter or a click. */
@@ -67,7 +75,8 @@ export class BattleHud {
     }
   }
 
-  showMenu(onPick: (choice: MenuChoice) => void): void {
+  /** `enabled` lists the options that work right now; the rest show dimmed and explain themselves when picked. */
+  showMenu(onPick: (choice: MenuChoice) => void, enabled: ReadonlySet<MenuChoice>): void {
     let selected = MENU.findIndex((m) => m.id === "spell");
     this.root.classList.remove("hidden");
     this.text.textContent = "What will you do?";
@@ -82,7 +91,7 @@ export class BattleHud {
     const render = () =>
       this.menu.replaceChildren(
         ...MENU.map((m, i) => {
-          const li = el("li", [m.dimmed ? "dimmed" : "", i === selected ? "selected" : ""].join(" ").trim(), m.label);
+          const li = el("li", [enabled.has(m.id) ? "" : "dimmed", i === selected ? "selected" : ""].join(" ").trim(), m.label);
           li.addEventListener("click", () => this.onKey && pick(i));
           return li;
         }),
@@ -144,7 +153,7 @@ interface Bar {
   fill: HTMLElement;
 }
 
-function bar(kind: "hp" | "mp"): Bar {
+function bar(kind: "hp" | "mp" | "en"): Bar {
   const wrap = el("div", `bar ${kind}`);
   const fill = el("i");
   wrap.append(fill);

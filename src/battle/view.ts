@@ -4,6 +4,7 @@ import type { BattleEvent, BattleState } from "./types";
 export interface BattleView {
   playerHp: number;
   playerMana: number;
+  playerEnergy: number;
   enemyHp: number;
   enemyShielded: boolean;
   temperature: number;
@@ -13,6 +14,7 @@ export function viewOf(s: BattleState): BattleView {
   return {
     playerHp: s.player.hp,
     playerMana: s.player.mana,
+    playerEnergy: s.player.energy,
     enemyHp: s.enemy.hp,
     enemyShielded: s.enemy.shielded,
     temperature: s.world.temperature,
@@ -22,13 +24,14 @@ export function viewOf(s: BattleState): BattleView {
 export function stepView(v: BattleView, e: BattleEvent): BattleView {
   switch (e.type) {
     case "cast":
-      return e.who === "player" && e.fuel !== undefined && e.resource !== "energy" ? { ...v, playerMana: v.playerMana - e.fuel } : v;
+      if (e.who !== "player" || e.fuel === undefined) return v;
+      return e.resource === "energy" ? { ...v, playerEnergy: v.playerEnergy - e.fuel } : { ...v, playerMana: v.playerMana - e.fuel };
     case "damage":
       return e.target === "player"
         ? { ...v, playerHp: Math.max(0, v.playerHp - e.amount) }
         : { ...v, enemyHp: Math.max(0, v.enemyHp - e.amount) };
     case "regen":
-      return e.resource === "mana" ? { ...v, playerMana: v.playerMana + e.amount } : v;
+      return e.resource === "mana" ? { ...v, playerMana: v.playerMana + e.amount } : { ...v, playerEnergy: v.playerEnergy + e.amount };
     case "shieldUp":
       return e.who === "enemy" ? { ...v, enemyShielded: true } : v;
     case "shieldMelted":

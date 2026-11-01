@@ -86,6 +86,10 @@
   background: #3d6ee0;
 }
 
+.bar.en > i {
+  background: #e0a43d;
+}
+
 .battle-text {
   flex: 1;
   position: relative;

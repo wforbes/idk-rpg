@@ -3,7 +3,7 @@ import { javascript } from "@codemirror/lang-javascript";
 import { keymap } from "@codemirror/view";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { basicSetup, EditorView } from "codemirror";
-import { ABILITIES } from "../battle/abilities";
+import { ABILITIES, fuelWindow } from "../battle/abilities";
 import { ENEMIES } from "../battle/enemies";
 import { precheck, snapshotFor } from "../battle/engine";
 import type { BattleState, RunCode } from "../battle/types";
@@ -11,18 +11,17 @@ import { awarenessRows, type AwarenessTab } from "./awareness";
 import { el, uiRoot } from "./dom";
 import "./castingOverlay.css";
 
+export type SpellbookTab = "moves" | "spells";
+
 export interface CastingOverlayOptions {
   state: BattleState;
+  /** Which spellbook tab opens first (Attack → moves, Spell → spells). Everything known is callable either way. */
+  tab: SpellbookTab;
   initialCode: string;
   runCode: RunCode;
   onCast(code: string): void;
   onBack(): void;
 }
-
-/** What each spell does, in the spellbook's words. The fuel window comes from the ability itself. */
-const SPELL_NOTES: Record<string, string> = {
-  ember: "burns · a full 5 MP melts ice",
-};
 
 /**
  * The spellbook overlay: tell, code editor, spellbook, awareness panel, Cast / Back.
@@ -41,15 +40,44 @@ export function openCastingOverlay(opts: CastingOverlayOptions): { close(): void
   const editorHost = el("div", "casting-editor");
 
   const spellbook = el("div", "casting-col casting-book");
-  spellbook.append(el("h3", "", "Spellbook"));
-  for (const id of state.knownAbilities) {
-    const ability = ABILITIES[id];
-    const entry = el("div", "spell");
-    entry.append(el("code", "", `${id}(mana)`));
-    const window = ability.fuel ? `${ability.fuel.min}–${ability.fuel.max} MP · ` : "";
-    entry.append(el("p", "", `${window}${SPELL_NOTES[id] ?? ""}`));
-    spellbook.append(entry);
-  }
+  const bookTabs = el("div", "aware-tabs");
+  const bookEntries = el("div", "book-entries");
+  let bookTab: SpellbookTab = opts.tab;
+  const renderBook = () => {
+    bookTabs.replaceChildren(
+      ...(["moves", "spells"] as const).map((t) => {
+        const b = el("button", t === bookTab ? "on" : "", t === "moves" ? "Moves" : "Spells");
+        b.type = "button";
+        b.addEventListener("click", () => {
+          bookTab = t;
+          renderBook();
+        });
+        return b;
+      }),
+    );
+    const wanted = bookTab === "spells" ? ["spell"] : ["move", "other"];
+    const ids = state.knownAbilities.filter((id) => ABILITIES[id] && wanted.includes(ABILITIES[id].kind));
+    bookEntries.replaceChildren(
+      ...(ids.length ? ids : [""]).map((id) => {
+        const entry = el("div", "spell");
+        if (!id) {
+          entry.append(el("p", "", "Nothing here yet."));
+          return entry;
+        }
+        const ability = ABILITIES[id];
+        entry.append(el("code", "", ability.signature));
+        let window = "";
+        if (ability.fuel) {
+          const { min, max } = fuelWindow(state, "player", ability);
+          window = `${min}–${max} ${ability.fuel.resource === "mana" ? "MP" : "EN"} · `;
+        }
+        entry.append(el("p", "", `${window}${ability.notes}`));
+        return entry;
+      }),
+    );
+  };
+  renderBook();
+  spellbook.append(el("h3", "", "Spellbook"), bookTabs, bookEntries);
 
   const aware = el("div", "casting-col casting-aware");
   const tabs = el("div", "aware-tabs");
@@ -76,7 +104,7 @@ export function openCastingOverlay(opts: CastingOverlayOptions): { close(): void
 
   const status = el("div", "casting-status");
   const message = el("div", "casting-message");
-  const mp = el("span", "casting-mp", `MP ${state.player.mana}/${state.player.maxMana}`);
+  const mp = el("span", "casting-mp", `MP ${state.player.mana}/${state.player.maxMana} · EN ${state.player.energy}/${state.player.maxEnergy}`);
   const back = el("button", "casting-back", "Back");
   const castBtn = el("button", "casting-cast", "▶ Cast");
   back.title = "Esc";
